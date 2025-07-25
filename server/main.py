@@ -24,7 +24,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://gift-propaganda.vercel.app",
-        "https://giftpropaganda-backend.onrender.com"  # Обновлен для реального домена
+        "https://giftpropaganda.onrender.com"  # Обновлен на реальный домен
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Разрешаем все HTTP методы

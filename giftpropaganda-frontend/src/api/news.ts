@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://giftpropaganda-backend.onrender.com/api/news/';
+const API_URL = 'https://giftpropaganda.onrender.com/api/news/';  // Обновлен на реальный домен
 
 export interface NewsItem {
   id: number;
