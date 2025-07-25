@@ -1,7 +1,27 @@
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
-import { NewsItem } from '../api/news';
 import TelegramWebApp from '../telegram/TelegramWebApp';
+
+interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  link: string;
+  publish_date: string;
+  category: string;
+  image_url?: string;
+  video_url?: string;
+  reading_time?: number;
+  views_count?: number;
+  author?: string;
+  subtitle?: string;
+}
+
+interface NewsModalProps {
+  news: NewsItem;
+  isOpen: boolean;
+  onClose: () => void;
+}
 
 const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
@@ -9,238 +29,413 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: ${props => props.$isOpen ? 'flex' : 'none'};
-  justify-content: center;
-  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
   z-index: 1000;
+  opacity: ${props => props.$isOpen ? 1 : 0};
+  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
+  transition: all 0.3s ease;
 `;
 
-const ModalContent = styled.div<{ $isOpen: boolean }>`
-  background-color: var(--tg-theme-bg-color, #ffffff);
-  width: 100%;
-  max-height: 80vh;
-  border-radius: 16px 16px 0 0;
-  transform: ${props => props.$isOpen ? 'translateY(0)' : 'translateY(100%)'};
-  transition: transform 0.3s ease-out;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+const ModalContainer = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--tg-theme-bg-color, #0f0f0f);
+  color: var(--tg-theme-text-color, #ffffff);
+  transform: translateY(${props => props.$isOpen ? '0' : '100%'});
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 `;
 
-const ModalHeader = styled.div`
+const ModalHeader = styled.header`
+  position: sticky;
+  top: 0;
+  background: var(--tg-theme-bg-color, #0f0f0f);
+  border-bottom: 1px solid var(--tg-theme-hint-color, #333);
+  padding: 16px;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+`;
+
+const HeaderControls = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
-`;
-
-const ModalTitle = styled.h3`
-  color: var(--tg-theme-text-color, #000000);
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0;
-  flex: 1;
-  line-height: 1.3;
+  margin-bottom: 12px;
 `;
 
 const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--tg-theme-hint-color, #999999);
-  cursor: pointer;
-  padding: 4px;
-  margin-left: 12px;
+  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+  border: 1px solid var(--tg-theme-hint-color, #333);
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  
+  cursor: pointer;
+  color: var(--tg-theme-text-color, #ffffff);
+  font-size: 18px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--tg-theme-hint-color, #333);
+    transform: scale(1.05);
+  }
+
   &:active {
-    background-color: var(--tg-theme-hint-color, #e0e0e0);
     transform: scale(0.95);
   }
 `;
 
-const ModalBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-`;
-
-const CategoryTag = styled.span<{ $category: string }>`
-  background-color: ${props => getCategoryColor(props.$category)};
-  color: white;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
+const ShareButton = styled.button`
+  background: var(--tg-theme-button-color, #0088cc);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: var(--tg-theme-button-text-color, #ffffff);
+  font-size: 14px;
   font-weight: 500;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  display: inline-block;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
-// Компоненты для медиа в модальном окне
-const ModalMediaContainer = styled.div`
-  margin: 16px 0;
+const ArticleHeader = styled.div`
+  margin-bottom: 16px;
+`;
+
+const CategoryBadge = styled.span<{ $category: string }>`
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: ${props => getCategoryColor(props.$category)};
+  color: #ffffff;
+  margin-bottom: 12px;
+`;
+
+const ArticleTitle = styled.h1`
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tg-theme-text-color, #ffffff);
+`;
+
+const ArticleSubtitle = styled.h2`
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--tg-theme-hint-color, #999);
+`;
+
+const ArticleMetadata = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--tg-theme-hint-color, #999);
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--tg-theme-hint-color, #333);
+`;
+
+const MetadataItem = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const ArticleContent = styled.div`
+  padding: 24px 16px;
+  max-width: 700px;
+  margin: 0 auto;
+`;
+
+const ArticleImage = styled.img`
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 20px 0;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+`;
+
+const VideoContainer = styled.div`
+  width: 100%;
+  margin: 20px 0;
   border-radius: 12px;
   overflow: hidden;
-  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 `;
 
-const ModalNewsImage = styled.img`
-  width: 100%;
-  height: auto;
-  max-height: 60vh;
-  object-fit: contain;
-  display: block;
-`;
-
-const ModalNewsVideo = styled.video`
-  width: 100%;
-  height: auto;
-  max-height: 60vh;
-  display: block;
-`;
-
-const NewsContent = styled.div`
-  line-height: 1.6;
-  color: var(--tg-theme-text-color, #000000);
+const ArticleText = styled.div`
   font-size: 16px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  line-height: 1.6;
+  color: var(--tg-theme-text-color, #ffffff);
+  
+  p {
+    margin: 0 0 16px 0;
+  }
+  
+  a {
+    color: var(--tg-theme-link-color, #0088cc);
+    text-decoration: none;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 `;
 
-const NewsFooter = styled.div`
-  padding: 16px 20px;
-  border-top: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const NewsSource = styled.div`
-  color: var(--tg-theme-hint-color, #999999);
+const SourceLink = styled.div`
+  margin-top: 32px;
+  padding: 16px;
+  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+  border: 1px solid var(--tg-theme-hint-color, #333);
+  border-radius: 12px;
   font-size: 14px;
+  color: var(--tg-theme-hint-color, #999);
+  text-align: center;
 `;
 
-const NewsDate = styled.div`
-  color: var(--tg-theme-hint-color, #999999);
+const SourceLinkButton = styled.button`
+  background: transparent;
+  border: 1px solid var(--tg-theme-hint-color, #333);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--tg-theme-text-color, #ffffff);
   font-size: 14px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--tg-theme-button-color, #0088cc);
+    color: var(--tg-theme-button-color, #0088cc);
+  }
 `;
 
-// Функция для получения цвета категории
-const getCategoryColor = (category: string): string => {
-  const colors: { [key: string]: string } = {
-    gifts: '#FF6B6B',
-    crypto: '#4ECDC4',
-    nft: '#45B7D1',
-    tech: '#96CEB4',
-    community: '#FECA57',
-    general: '#DDA0DD'
+const RecommendationsSection = styled.div`
+  margin-top: 32px;
+  padding: 20px 16px;
+  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+  border-top: 1px solid var(--tg-theme-hint-color, #333);
+`;
+
+const RecommendationsTitle = styled.h3`
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #ffffff);
+  text-align: center;
+`;
+
+const RecommendationCard = styled.div`
+  background: var(--tg-theme-bg-color, #0f0f0f);
+  border: 1px solid var(--tg-theme-hint-color, #333);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--tg-theme-button-color, #0088cc);
+    transform: translateY(-1px);
+  }
+`;
+
+const RecommendationTitle = styled.h4`
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tg-theme-text-color, #ffffff);
+  line-height: 1.3;
+`;
+
+const RecommendationMeta = styled.div`
+  font-size: 12px;
+  color: var(--tg-theme-hint-color, #999);
+`;
+
+function getCategoryColor(category: string): string {
+  const colors: Record<string, string> = {
+    'gifts': '#ff6b6b',
+    'crypto': '#4ecdc4',
+    'tech': '#45b7d1',
+    'community': '#96ceb4',
+    'gaming': '#feca57',
+    'news': '#ff9ff3',
+    'default': '#6c5ce7'
   };
-  return colors[category] || colors.general;
-};
-
-// Функция для форматирования даты
-const formatFullDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-interface NewsModalProps {
-  news: NewsItem | null;
-  onClose: () => void;
+  return colors[category] || colors.default;
 }
 
-const NewsModal: React.FC<NewsModalProps> = ({ news, onClose }) => {
-  const isOpen = !!news;
+function formatTimeAgo(dateString: string): string {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
+  if (diffInSeconds < 60) return 'только что';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} мин назад`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ч назад`;
+  return `${Math.floor(diffInSeconds / 86400)} дн назад`;
+}
+
+function estimateReadingTime(text: string): number {
+  const wordsPerMinute = 200;
+  const words = text.split(' ').length;
+  return Math.ceil(words / wordsPerMinute);
+}
+
+const NewsModal: React.FC<NewsModalProps> = ({ news, isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
-      // Блокируем скролл основной страницы
-      document.body.style.overflow = 'hidden';
-      TelegramWebApp.triggerHapticFeedback('medium');
-    } else {
-      document.body.style.overflow = 'unset';
+      TelegramWebApp.triggerHapticFeedback('notification');
     }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [isOpen]);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
+  const handleShare = () => {
+    TelegramWebApp.triggerHapticFeedback('impact');
+    if (navigator.share) {
+      navigator.share({
+        title: news.title,
+        text: news.content.substring(0, 100) + '...',
+        url: news.link
+      });
+    } else {
+      // Fallback для старых браузеров
+      navigator.clipboard.writeText(news.link);
+      TelegramWebApp.showAlert('Ссылка скопирована в буфер обмена');
     }
+  };
+
+  const handleSourceClick = () => {
+    TelegramWebApp.triggerHapticFeedback('impact');
+    TelegramWebApp.openLink(news.link);
   };
 
   const handleClose = () => {
-    TelegramWebApp.triggerHapticFeedback('light');
+    TelegramWebApp.triggerHapticFeedback('impact');
     onClose();
   };
 
-  if (!news) return null;
+  if (!isOpen) return null;
+
+  const readingTime = news.reading_time || estimateReadingTime(news.content);
 
   return (
-    <ModalOverlay $isOpen={isOpen} onClick={handleOverlayClick}>
-      <ModalContent $isOpen={isOpen}>
+    <ModalOverlay $isOpen={isOpen} onClick={handleClose}>
+      <ModalContainer $isOpen={isOpen} onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>{news.title}</ModalTitle>
-          <CloseButton onClick={handleClose}>×</CloseButton>
+          <HeaderControls>
+            <CloseButton onClick={handleClose}>×</CloseButton>
+            <ShareButton onClick={handleShare}>Поделиться</ShareButton>
+          </HeaderControls>
+
+          <ArticleHeader>
+            <CategoryBadge $category={news.category}>
+              {news.category.toUpperCase()}
+            </CategoryBadge>
+
+            <ArticleTitle>{news.title}</ArticleTitle>
+
+            {news.subtitle && (
+              <ArticleSubtitle>{news.subtitle}</ArticleSubtitle>
+            )}
+
+            <ArticleMetadata>
+              <MetadataItem>
+                📅 {formatTimeAgo(news.publish_date)}
+              </MetadataItem>
+
+              <MetadataItem>
+                📖 {readingTime} мин чтения
+              </MetadataItem>
+
+              {news.views_count !== undefined && (
+                <MetadataItem>
+                  👁️ {news.views_count} просмотров
+                </MetadataItem>
+              )}
+
+              {news.author && (
+                <MetadataItem>
+                  👤 {news.author}
+                </MetadataItem>
+              )}
+            </ArticleMetadata>
+          </ArticleHeader>
         </ModalHeader>
 
-        <ModalBody>
-          <CategoryTag $category={news.category}>
-            {news.category.toUpperCase()}
-          </CategoryTag>
-
-          {/* Поддержка медиа в модальном окне */}
-          {news.media && (
-            <ModalMediaContainer>
-              {news.media.type === 'photo' && (
-                <ModalNewsImage
-                  src={news.media.url}
-                  alt={news.title}
-                  loading="lazy"
-                />
-              )}
-              {news.media.type === 'video' && (
-                <ModalNewsVideo
-                  src={news.media.url}
-                  controls
-                  preload="metadata"
-                  poster={news.media.thumbnail}
-                />
-              )}
-            </ModalMediaContainer>
+        <ArticleContent>
+          {news.image_url && (
+            <ArticleImage
+              src={news.image_url}
+              alt={news.title}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
           )}
 
-          <NewsContent>{news.content}</NewsContent>
-        </ModalBody>
+          {news.video_url && (
+            <VideoContainer>
+              <video
+                controls
+                style={{ width: '100%', height: 'auto' }}
+                poster={news.image_url}
+              >
+                <source src={news.video_url} type="video/mp4" />
+                Ваш браузер не поддерживает видео.
+              </video>
+            </VideoContainer>
+          )}
 
-        <NewsFooter>
-          <NewsSource>
-            Источник: {news.source?.name || 'Telegram'}
-          </NewsSource>
-          <NewsDate>
-            {formatFullDate(news.publish_date)}
-          </NewsDate>
-        </NewsFooter>
-      </ModalContent>
+          <ArticleText>
+            {news.content.split('\n').map((paragraph, index) =>
+              paragraph.trim() && (
+                <p key={index}>{paragraph}</p>
+              )
+            )}
+          </ArticleText>
+
+          <SourceLink>
+            Источник
+            <SourceLinkButton onClick={handleSourceClick}>
+              Читать оригинал
+            </SourceLinkButton>
+          </SourceLink>
+        </ArticleContent>
+
+        <RecommendationsSection>
+          <RecommendationsTitle>Рекомендуем к прочтению</RecommendationsTitle>
+
+          {/* Здесь можно добавить рекомендованные статьи */}
+          <RecommendationCard>
+            <RecommendationTitle>
+              Похожие новости появятся здесь
+            </RecommendationTitle>
+            <RecommendationMeta>
+              Система рекомендаций в разработке
+            </RecommendationMeta>
+          </RecommendationCard>
+        </RecommendationsSection>
+      </ModalContainer>
     </ModalOverlay>
   );
 };

@@ -1,5 +1,5 @@
 // Telegram WebApp API для React
-class TelegramWebAppClass {
+class TelegramWebApp {
   private webApp: any = null;
 
   init() {
@@ -9,86 +9,70 @@ class TelegramWebAppClass {
       this.webApp.ready();
       this.webApp.expand();
 
-      // Устанавливаем цветовую схему только если поддерживается
-      try {
-        if (this.webApp.setHeaderColor) {
-          this.webApp.setHeaderColor('secondary_bg_color');
-        }
-        if (this.webApp.setBackgroundColor) {
-          this.webApp.setBackgroundColor('bg_color');
-        }
-      } catch (e) {
-        console.log('Color methods not supported in this version');
-      }
+      // Настройка темы
+      this.webApp.setHeaderColor('#1a1a1a');
+      this.webApp.setBackgroundColor('#1a1a1a');
 
       console.log('Telegram WebApp инициализирован');
     } else {
-      console.log('Telegram WebApp не доступен (разработка)');
+      console.log('Telegram WebApp недоступен - работаем в браузере');
     }
+  }
+
+  isAvailable(): boolean {
+    return this.webApp !== null;
   }
 
   getThemeParams() {
-    if (this.webApp?.themeParams) {
+    if (this.webApp) {
       return this.webApp.themeParams;
     }
-
-    // Дефолтная светлая тема для разработки
     return {
-      bg_color: '#ffffff',
-      text_color: '#000000',
+      bg_color: '#1a1a1a',
+      text_color: '#ffffff',
       hint_color: '#999999',
-      link_color: '#007AFF',
-      button_color: '#007AFF',
-      button_text_color: '#ffffff',
-      secondary_bg_color: '#f8f9fa',
-      destructive_text_color: '#ff3b30'
+      link_color: '#0088cc',
+      button_color: '#0088cc',
+      button_text_color: '#ffffff'
     };
   }
 
-  triggerHapticFeedback(type: 'light' | 'medium' | 'heavy' | 'selection_change' = 'light') {
-    // Проверяем поддержку HapticFeedback
-    if (this.webApp?.HapticFeedback) {
-      try {
-        switch (type) {
-          case 'light':
-            this.webApp.HapticFeedback.impactOccurred('light');
-            break;
-          case 'medium':
-            this.webApp.HapticFeedback.impactOccurred('medium');
-            break;
-          case 'heavy':
-            this.webApp.HapticFeedback.impactOccurred('heavy');
-            break;
-          case 'selection_change':
-            this.webApp.HapticFeedback.selectionChanged();
-            break;
-        }
-      } catch (e) {
-        console.log('HapticFeedback not supported in this version');
+  getUserData() {
+    if (this.webApp && this.webApp.initDataUnsafe) {
+      return this.webApp.initDataUnsafe.user;
+    }
+    return null;
+  }
+
+  triggerHapticFeedback(type: 'impact' | 'notification' = 'impact') {
+    if (this.webApp && this.webApp.HapticFeedback) {
+      if (type === 'impact') {
+        this.webApp.HapticFeedback.impactOccurred('light');
+      } else {
+        this.webApp.HapticFeedback.notificationOccurred('success');
       }
     }
   }
 
   showAlert(message: string) {
-    if (this.webApp?.showAlert) {
+    if (this.webApp) {
       this.webApp.showAlert(message);
     } else {
-      // eslint-disable-next-line no-alert
       alert(message);
     }
   }
 
   showConfirm(message: string, callback: (confirmed: boolean) => void) {
-    if (this.webApp?.showConfirm) {
+    if (this.webApp) {
       this.webApp.showConfirm(message, callback);
     } else {
-      // eslint-disable-next-line no-restricted-globals
-      callback(confirm(message));
+      const confirmed = window.confirm(message);
+      callback(confirmed);
     }
   }
 
   openLink(url: string) {
-    if (this.webApp?.openLink) {
+    if (this.webApp) {
       this.webApp.openLink(url);
     } else {
       window.open(url, '_blank');
@@ -96,36 +80,40 @@ class TelegramWebAppClass {
   }
 
   close() {
-    if (this.webApp?.close) {
+    if (this.webApp) {
       this.webApp.close();
     }
   }
 
-  getUser() {
-    return this.webApp?.initDataUnsafe?.user || null;
-  }
+  setMainButton(params: {
+    text: string;
+    color?: string;
+    isVisible?: boolean;
+    onClick?: () => void;
+  }) {
+    if (this.webApp && this.webApp.MainButton) {
+      const { text, color = '#0088cc', isVisible = true, onClick } = params;
 
-  isExpanded() {
-    return this.webApp?.isExpanded || false;
-  }
+      this.webApp.MainButton.setText(text);
+      this.webApp.MainButton.color = color;
 
-  getViewportHeight() {
-    return this.webApp?.viewportHeight || window.innerHeight;
-  }
+      if (onClick) {
+        this.webApp.MainButton.onClick(onClick);
+      }
 
-  onThemeChanged(callback: () => void) {
-    if (this.webApp) {
-      this.webApp.onEvent('themeChanged', callback);
+      if (isVisible) {
+        this.webApp.MainButton.show();
+      } else {
+        this.webApp.MainButton.hide();
+      }
     }
   }
 
-  onViewportChanged(callback: () => void) {
-    if (this.webApp) {
-      this.webApp.onEvent('viewportChanged', callback);
+  hideMainButton() {
+    if (this.webApp && this.webApp.MainButton) {
+      this.webApp.MainButton.hide();
     }
   }
 }
 
-const TelegramWebApp = new TelegramWebAppClass();
-
-export default TelegramWebApp;
+export default new TelegramWebApp();

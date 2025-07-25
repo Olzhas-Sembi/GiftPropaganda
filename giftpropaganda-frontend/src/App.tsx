@@ -1,431 +1,470 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import styled, { ThemeProvider, createGlobalStyle } from 'styled-components';
-import { fetchNews, NewsResponse, NewsItem } from './api/news';
-import TelegramWebApp from './telegram/TelegramWebApp';
-import SearchBar from './components/SearchBar';
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { fetchNews } from './api/news';
 import NewsModal from './components/NewsModal';
+import SearchBar from './components/SearchBar';
+import TelegramWebApp from './telegram/TelegramWebApp';
 
-// Глобальные стили для Telegram Mini App
-const GlobalStyle = createGlobalStyle<{ theme: any }>`
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+// Типы данных
+interface NewsItem {
+  id: number;
+  title: string;
+  content: string;
+  link: string;
+  publish_date: string;
+  category: string;
+  image_url?: string;
+  video_url?: string;
+  reading_time?: number;
+  views_count?: number;
+  author?: string;
+  subtitle?: string;
+}
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-    background-color: var(--tg-theme-bg-color, #ffffff);
-    color: var(--tg-theme-text-color, #000000);
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    margin: 0;
-    padding: 0;
-  }
-
-  html, body, #root {
-    height: var(--tg-viewport-height, 100vh);
-    margin: 0;
-    padding: 0;
-  }
-`;
-
-const AppContainer = styled.div<{ theme: any }>`
-  background-color: var(--tg-theme-bg-color, #ffffff);
-  min-height: var(--tg-viewport-height, 100vh);
-  color: var(--tg-theme-text-color, #000000);
+// Стилизованные компоненты
+const AppContainer = styled.div`
+  min-height: 100vh;
+  background: var(--tg-theme-bg-color, #0f0f0f);
+  color: var(--tg-theme-text-color, #ffffff);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   padding: 0;
   margin: 0;
 `;
 
-const Header = styled.header<{ theme: any }>`
-  background-color: var(--tg-theme-secondary-bg-color, #f8f9fa);
-  color: var(--tg-theme-text-color, #000000);
-  padding: 16px;
-  text-align: center;
-  border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+const Header = styled.header`
   position: sticky;
   top: 0;
   z-index: 100;
+  background: var(--tg-theme-bg-color, #0f0f0f);
+  border-bottom: 1px solid var(--tg-theme-hint-color, #333);
+  padding: 16px;
+  backdrop-filter: blur(10px);
 `;
 
 const Title = styled.h1`
-  font-size: 18px;
+  margin: 0 0 16px 0;
+  font-size: 24px;
   font-weight: 600;
-  margin: 0;
-  color: var(--tg-theme-text-color, #000000);
+  text-align: center;
+  color: var(--tg-theme-text-color, #ffffff);
 `;
 
-const CategoryFilter = styled.div`
+const CategoryTabs = styled.div`
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
   overflow-x: auto;
-  background-color: var(--tg-theme-bg-color, #ffffff);
-  border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+  padding: 8px 0;
+  margin-bottom: 16px;
+  
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--tg-theme-hint-color, #333);
+    border-radius: 2px;
+  }
 `;
 
-const CategoryButton = styled.button<{ $active: boolean }>`
+const CategoryTab = styled.button<{ $active: boolean }>`
   padding: 8px 16px;
+  border: none;
   border-radius: 20px;
-  border: 1px solid var(--tg-theme-button-color, #007AFF);
-  background-color: ${props => props.$active ? 'var(--tg-theme-button-color, #007AFF)' : 'transparent'};
-  color: ${props => props.$active ? 'var(--tg-theme-button-text-color, #ffffff)' : 'var(--tg-theme-button-color, #007AFF)'};
+  background: ${props => props.$active 
+    ? 'var(--tg-theme-button-color, #0088cc)' 
+    : 'var(--tg-theme-secondary-bg-color, #1a1a1a)'};
+  color: ${props => props.$active 
+    ? 'var(--tg-theme-button-text-color, #ffffff)' 
+    : 'var(--tg-theme-text-color, #ffffff)'};
   font-size: 14px;
-  white-space: nowrap;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+  }
 
   &:active {
-    transform: scale(0.95);
+    transform: translateY(0);
   }
 `;
 
-const NewsList = styled.div`
-  padding: 8px;
+const NewsContainer = styled.div`
+  padding: 0 16px 20px 16px;
+  max-width: 800px;
+  margin: 0 auto;
 `;
 
-const NewsItemCard = styled.div<{ $isNew?: boolean }>`
-  background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-  margin-bottom: 8px;
+const NewsCard = styled.div<{ $isNew?: boolean }>`
+  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+  border: 1px solid var(--tg-theme-hint-color, #333);
   border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-  transition: transform 0.1s ease;
-  position: relative;
+  padding: 20px;
+  margin-bottom: 16px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 
   ${props => props.$isNew && `
-    border-left: 4px solid var(--tg-theme-button-color, #007AFF);
-    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.1);
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--tg-theme-button-color, #0088cc);
+    }
   `}
 
-  &:active {
-    transform: scale(0.98);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: var(--tg-theme-button-color, #0088cc);
   }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const NewsHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+`;
+
+const NewsImage = styled.img`
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--tg-theme-hint-color, #333);
+  flex-shrink: 0;
 `;
 
 const NewsContent = styled.div`
-  padding: 16px;
+  flex: 1;
+  min-width: 0;
 `;
 
-const NewsTitle = styled.h2`
-  color: var(--tg-theme-link-color, #007AFF);
+const NewsTitle = styled.h3`
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.4;
+  color: var(--tg-theme-text-color, #ffffff);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
 
-const NewsText = styled.p`
-  color: var(--tg-theme-text-color, #000000);
+const NewsPreview = styled.p`
   margin: 0 0 12px 0;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
+  color: var(--tg-theme-hint-color, #999);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
 
-const NewsFooter = styled.div`
+const NewsMetadata = styled.div`
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+`;
+
+const NewsInfo = styled.div`
+  display: flex;
   align-items: center;
-  margin-top: 8px;
-`;
-
-const NewsSource = styled.span`
-  color: var(--tg-theme-hint-color, #999999);
+  gap: 12px;
   font-size: 12px;
+  color: var(--tg-theme-hint-color, #999);
 `;
 
-const NewsDate = styled.span`
-  color: var(--tg-theme-hint-color, #999999);
-  font-size: 12px;
-`;
-
-const CategoryTag = styled.span<{ $category: string }>`
-  background-color: ${props => getCategoryColor(props.$category)};
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 10px;
+const CategoryBadge = styled.span<{ $category: string }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
   font-weight: 500;
-  text-transform: uppercase;
+  background: ${props => getCategoryColor(props.$category)};
+  color: #ffffff;
 `;
 
-const LoadingContainer = styled.div`
+const ReadingTime = styled.span`
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 200px;
-  color: var(--tg-theme-hint-color, #999999);
-`;
-
-const ErrorContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-  color: var(--tg-theme-destructive-text-color, #ff3b30);
-  text-align: center;
-  padding: 20px;
-`;
-
-const RetryButton = styled.button`
-  background-color: var(--tg-theme-button-color, #007AFF);
-  color: var(--tg-theme-button-text-color, #ffffff);
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  margin-top: 16px;
-  cursor: pointer;
-
-  &:active {
-    transform: scale(0.95);
+  gap: 4px;
+  
+  &::before {
+    content: '📖';
   }
 `;
 
-// Компоненты для медиа
-const MediaContainer = styled.div`
-  margin: 12px 0;
-  border-radius: 8px;
-  overflow: hidden;
+const ViewsCount = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  
+  &::before {
+    content: '👁️';
+  }
 `;
 
-const NewsImage = styled.img`
-  width: 100%;
-  height: auto;
-  max-height: 300px;
-  object-fit: cover;
-  border-radius: 8px;
+const LoadingSpinner = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  
+  &::after {
+    content: '';
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--tg-theme-hint-color, #333);
+    border-top: 3px solid var(--tg-theme-button-color, #0088cc);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 `;
 
-const NewsVideo = styled.video`
-  width: 100%;
-  height: auto;
-  max-height: 300px;
-  border-radius: 8px;
+const ErrorMessage = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--tg-theme-destructive-text-color, #ff4444);
+  font-size: 16px;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--tg-theme-hint-color, #999);
+  
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: var(--tg-theme-text-color, #ffffff);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
 `;
 
 // Функция для получения цвета категории
-const getCategoryColor = (category: string): string => {
-  const colors: { [key: string]: string } = {
-    gifts: '#FF6B6B',
-    crypto: '#4ECDC4',
-    nft: '#45B7D1',
-    tech: '#96CEB4',
-    community: '#FECA57',
-    general: '#DDA0DD'
+function getCategoryColor(category: string): string {
+  const colors: Record<string, string> = {
+    'gifts': '#ff6b6b',
+    'crypto': '#4ecdc4',
+    'tech': '#45b7d1',
+    'community': '#96ceb4',
+    'gaming': '#feca57',
+    'news': '#ff9ff3',
+    'default': '#6c5ce7'
   };
-  return colors[category] || colors.general;
-};
+  return colors[category] || colors.default;
+}
 
-// Функция для форматирования даты
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
+// Функция для форматирования времени
+function formatTimeAgo(dateString: string): string {
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffMins < 1) return 'сейчас';
-  if (diffMins < 60) return `${diffMins}м`;
-  if (diffHours < 24) return `${diffHours}ч`;
-  if (diffDays < 7) return `${diffDays}д`;
+  if (diffInSeconds < 60) return 'только что';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} мин назад`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ч назад`;
+  return `${Math.floor(diffInSeconds / 86400)} дн назад`;
+}
 
-  return date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'short'
-  });
-};
-
-const categories = [
-  { key: 'all', label: 'Все' },
-  { key: 'gifts', label: 'Подарки' },
-  { key: 'crypto', label: 'Крипто' },
-  { key: 'nft', label: 'NFT' },
-  { key: 'tech', label: 'Технологии' },
-  { key: 'community', label: 'Сообщество' }
-];
-
+// Основной компонент
 const App: React.FC = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
-  const [theme, setTheme] = useState<any>({});
 
-  // Инициализация Telegram WebApp
+  const categories = [
+    { id: 'all', name: 'Все' },
+    { id: 'gifts', name: 'Подарки' },
+    { id: 'crypto', name: 'Крипто' },
+    { id: 'tech', name: 'Технологии' },
+    { id: 'community', name: 'Сообщество' },
+    { id: 'gaming', name: 'Игры' }
+  ];
+
   useEffect(() => {
     TelegramWebApp.init();
-    setTheme(TelegramWebApp.getThemeParams());
-
-    // Слушаем изменения темы
-    const handleThemeChanged = () => {
-      setTheme(TelegramWebApp.getThemeParams());
-    };
-
-    window.addEventListener('themeChanged', handleThemeChanged);
-    return () => window.removeEventListener('themeChanged', handleThemeChanged);
   }, []);
 
-  // Загрузка новостей
-  const getNews = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  const getNews = async () => {
     try {
-      const response: NewsResponse = await fetchNews(selectedCategory === 'all' ? undefined : selectedCategory);
-
-      if (response.status === 'success') {
-        setNews(response.data);
-      } else {
-        setError(response.message || 'Ошибка загрузки новостей');
-      }
+      setLoading(true);
+      setError(null);
+      const response = await fetchNews(selectedCategory === 'all' ? undefined : selectedCategory);
+      setNews(response.data);
     } catch (err) {
-      setError('Ошибка сети');
+      console.error('Ошибка при загрузке новостей:', err);
+      setError('Не удалось загрузить новости. Попробуйте еще раз.');
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory]);
+  };
 
   useEffect(() => {
     getNews();
-  }, [getNews]);
-
-  // Фильтрация новостей по поиску
-  const filteredNews = news.filter(item =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  }, [selectedCategory]);
 
   const handleNewsClick = (newsItem: NewsItem) => {
+    TelegramWebApp.triggerHapticFeedback('impact');
     setSelectedNews(newsItem);
-    TelegramWebApp.triggerHapticFeedback('light');
   };
 
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    TelegramWebApp.triggerHapticFeedback('selection_change');
+  const handleCategoryChange = (categoryId: string) => {
+    TelegramWebApp.triggerHapticFeedback('impact');
+    setSelectedCategory(categoryId);
   };
+
+  const filteredNews = news.filter(item =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const isNewNews = (dateString: string): boolean => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    return diffInHours < 24;
+  };
+
+  if (loading) {
+    return (
+      <AppContainer>
+        <Header>
+          <Title>Новости от Telegram</Title>
+        </Header>
+        <LoadingSpinner />
+      </AppContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppContainer>
+        <Header>
+          <Title>Новости от Telegram</Title>
+        </Header>
+        <ErrorMessage>{error}</ErrorMessage>
+      </AppContainer>
+    );
+  }
 
   return (
-    <ThemeProvider theme={theme}>
-      <GlobalStyle theme={theme} />
-      <AppContainer theme={theme}>
-        <Header theme={theme}>
-          <Title>🎁 Gift Propaganda News</Title>
-        </Header>
+    <AppContainer>
+      <Header>
+        <Title>Новости от Telegram</Title>
 
         <SearchBar
-          value={searchTerm}
-          onChange={setSearchTerm}
+          value={searchQuery}
+          onChange={setSearchQuery}
           placeholder="Поиск новостей..."
         />
 
-        <CategoryFilter>
+        <CategoryTabs>
           {categories.map(category => (
-            <CategoryButton
-              key={category.key}
-              $active={selectedCategory === category.key}
-              onClick={() => handleCategoryChange(category.key)}
+            <CategoryTab
+              key={category.id}
+              $active={selectedCategory === category.id}
+              onClick={() => handleCategoryChange(category.id)}
             >
-              {category.label}
-            </CategoryButton>
+              {category.name}
+            </CategoryTab>
           ))}
-        </CategoryFilter>
+        </CategoryTabs>
+      </Header>
 
-        {loading && (
-          <LoadingContainer>
-            Загрузка новостей...
-          </LoadingContainer>
+      <NewsContainer>
+        {filteredNews.length === 0 ? (
+          <EmptyState>
+            <h3>Новостей не найдено</h3>
+            <p>Попробуйте изменить категорию или поисковый запрос</p>
+          </EmptyState>
+        ) : (
+          filteredNews.map(item => (
+            <NewsCard
+              key={item.id}
+              $isNew={isNewNews(item.publish_date)}
+              onClick={() => handleNewsClick(item)}
+            >
+              <NewsHeader>
+                {item.image_url && (
+                  <NewsImage
+                    src={item.image_url}
+                    alt={item.title}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+                <NewsContent>
+                  <NewsTitle>{item.title}</NewsTitle>
+                  <NewsPreview>{item.content}</NewsPreview>
+                </NewsContent>
+              </NewsHeader>
+
+              <NewsMetadata>
+                <NewsInfo>
+                  <CategoryBadge $category={item.category}>
+                    {categories.find(cat => cat.id === item.category)?.name || item.category}
+                  </CategoryBadge>
+
+                  <span>{formatTimeAgo(item.publish_date)}</span>
+
+                  {item.reading_time && (
+                    <ReadingTime>{item.reading_time} мин</ReadingTime>
+                  )}
+
+                  {item.views_count !== undefined && (
+                    <ViewsCount>{item.views_count}</ViewsCount>
+                  )}
+                </NewsInfo>
+              </NewsMetadata>
+            </NewsCard>
+          ))
         )}
+      </NewsContainer>
 
-        {error && (
-          <ErrorContainer>
-            <div>{error}</div>
-            <RetryButton onClick={getNews}>
-              Повторить
-            </RetryButton>
-          </ErrorContainer>
-        )}
-
-        {!loading && !error && (
-          <NewsList>
-            {filteredNews.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--tg-theme-hint-color, #999999)' }}>
-                Новостей не найдено
-              </div>
-            ) : (
-              filteredNews.map((item) => (
-                <NewsItemCard
-                  key={item.id}
-                  onClick={() => handleNewsClick(item)}
-                  $isNew={new Date(item.publish_date) > new Date(Date.now() - 24 * 60 * 60 * 1000)}
-                >
-                  <NewsContent>
-                    <NewsTitle>{item.title}</NewsTitle>
-
-                    {/* Добавляем поддержку медиа */}
-                    {item.media && (
-                      <MediaContainer>
-                        {item.media.type === 'photo' && (
-                          <NewsImage
-                            src={item.media.url}
-                            alt={item.title}
-                            loading="lazy"
-                          />
-                        )}
-                        {item.media.type === 'video' && (
-                          <NewsVideo
-                            src={item.media.url}
-                            controls
-                            preload="metadata"
-                          />
-                        )}
-                      </MediaContainer>
-                    )}
-
-                    <NewsText>{item.content}</NewsText>
-                    <NewsFooter>
-                      <div>
-                        <CategoryTag $category={item.category}>
-                          {categories.find(c => c.key === item.category)?.label || item.category}
-                        </CategoryTag>
-                        <NewsSource style={{ marginLeft: '8px' }}>
-                          {item.source?.name || 'Telegram'}
-                        </NewsSource>
-                      </div>
-                      <NewsDate>
-                        {formatDate(item.publish_date)}
-                      </NewsDate>
-                    </NewsFooter>
-                  </NewsContent>
-                </NewsItemCard>
-              ))
-            )}
-          </NewsList>
-        )}
-
-        {selectedNews && (
-          <NewsModal
-            news={selectedNews}
-            onClose={() => setSelectedNews(null)}
-          />
-        )}
-      </AppContainer>
-    </ThemeProvider>
+      {selectedNews && (
+        <NewsModal
+          news={selectedNews}
+          isOpen={!!selectedNews}
+          onClose={() => setSelectedNews(null)}
+        />
+      )}
+    </AppContainer>
   );
 };
 

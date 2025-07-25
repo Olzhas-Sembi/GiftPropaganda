@@ -587,6 +587,220 @@ class TelegramNewsService:
             logger.error(f"Error getting channels info: {e}")
             return []
 
+    async def update_news_async(self):
+        """
+        Асинхронное обновление новостей из всех источников
+        Метод для периодического обновления в main.py
+        """
+        try:
+            logger.info(f"Fetching from {len(self.channels)} Telegram channels")
 
-# Глобальный экземпляр сервиса
-telegram_news_service = TelegramNewsService()
+            # Получаем новости из Telegram каналов
+            all_posts = []
+            for channel in self.channels:
+                try:
+                    posts = await self.fetch_telegram_channel(channel['username'])
+                    logger.info(f"Got {len(posts)} posts from {channel['username']}")
+                    all_posts.extend(posts)
+                except Exception as e:
+                    logger.error(f"Error fetching from channel {channel['username']}: {e}")
+                    continue
+
+            # Получаем новости из RSS источников
+            logger.info(f"Fetching from {len(self.rss_sources)} RSS sources")
+            for source in self.rss_sources:
+                try:
+                    articles = await self.fetch_rss_source(source['url'], source['name'], source['category'])
+                    logger.info(f"Got {len(articles)} articles from {source['name']}")
+                    all_posts.extend(articles)
+                except Exception as e:
+                    logger.error(f"Error fetching from RSS {source['name']}: {e}")
+                    continue
+
+            # Дедуплицируем по заголовкам
+            unique_posts = []
+            seen_titles = set()
+
+            for post in all_posts:
+                title_hash = hashlib.md5(post['title'].encode()).hexdigest()
+                if title_hash not in seen_titles:
+                    seen_titles.add(title_hash)
+                    unique_posts.append(post)
+
+            logger.info(f"After deduplication: {len(unique_posts)} unique posts from {len(all_posts)} total")
+
+            # Сортируем по дате (новые сначала)
+            try:
+                unique_posts.sort(key=lambda x: x['date'], reverse=True)
+            except Exception as e:
+                logger.warning(f"Error sorting by date: {e}, using original order")
+
+            # Сохраняем в базу данных
+            await self.save_to_database(unique_posts[:50])  # Сохраняем только 50 самых свежих
+
+            logger.info(f"Successfully updated {len(unique_posts[:50])} news items")
+
+        except Exception as e:
+            logger.error(f"Error in update_news_async: {e}")
+            raise
+
+    async def fetch_rss_source(self, url: str, name: str, category: str) -> List[Dict[str, Any]]:
+        """Получение новостей из RSS источника"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status != 200:
+                        logger.warning(f"Failed to fetch RSS {url}, status: {response.status}")
+                        return []
+
+                    content = await response.text()
+                    feed = feedparser.parse(content)
+
+                    if not feed.entries:
+                        logger.warning(f"No entries found in RSS feed: {url}")
+                        return []
+
+                    articles = []
+                    for entry in feed.entries[:10]:  # Берем только 10 последних статей
+                        # Извлекаем основную информацию
+                        title = entry.get('title', 'Без заголовка')
+                        description = entry.get('description', '') or entry.get('summary', '')
+                        link = entry.get('link', '')
+
+                        # Парсим дату
+                        date = datetime.now().isoformat()
+                        if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                            try:
+                                import time
+                                date = datetime.fromtimestamp(time.mktime(entry.published_parsed)).isoformat()
+                            except:
+                                pass
+
+                        # Извлекаем медиа контент
+                        media = None
+
+                        # Проверяем enclosures (вложения)
+                        if hasattr(entry, 'enclosures') and entry.enclosures:
+                            for enclosure in entry.enclosures:
+                                if hasattr(enclosure, 'type'):
+                                    if enclosure.type.startswith('image/'):
+                                        media = {
+                                            'type': 'photo',
+                                            'url': enclosure.href,
+                                            'thumbnail': enclosure.href
+                                        }
+                                        break
+                                    elif enclosure.type.startswith('video/'):
+                                        media = {
+                                            'type': 'video',
+                                            'url': enclosure.href,
+                                            'thumbnail': None
+                                        }
+                                        break
+
+                        # Проверяем media:content (альтернативный способ)
+                        if not media and hasattr(entry, 'media_content') and entry.media_content:
+                            for media_item in entry.media_content:
+                                if media_item.get('type', '').startswith('image/'):
+                                    media = {
+                                        'type': 'photo',
+                                        'url': media_item.get('url', ''),
+                                        'thumbnail': media_item.get('url', '')
+                                    }
+                                    break
+
+                        # Очищаем HTML теги из описания
+                        import re
+                        clean_description = re.sub(r'<[^>]+>', '', description)
+                        clean_description = clean_description.strip()[:300] + "..." if len(clean_description) > 300 else clean_description.strip()
+
+                        article = {
+                            'id': hashlib.md5(f"{url}_{title}".encode()).hexdigest(),
+                            'title': title,
+                            'text': clean_description,
+                            'link': link,
+                            'date': date,
+                            'source': name,
+                            'category': category,
+                            'media': media
+                        }
+
+                        articles.append(article)
+
+                    return articles
+
+        except Exception as e:
+            logger.error(f"Error fetching RSS from {url}: {e}")
+            return []
+
+    async def save_to_database(self, posts: List[Dict[str, Any]]):
+        """Сохранение новостей в базу данных"""
+        try:
+            # Импортируем здесь, чтобы избежать циркулярного импорта
+            import server.main as main_module
+            from server.db import NewsItem
+
+            if main_module.SessionLocal is None:
+                logger.error("Database not initialized")
+                return
+
+            db = main_module.SessionLocal()
+
+            try:
+                news_items = []
+                for post in posts:
+                    # Проверяем, существует ли уже такая новость
+                    existing = db.query(NewsItem).filter(
+                        NewsItem.title == post['title']
+                    ).first()
+
+                    if existing:
+                        continue  # Пропускаем дубликаты
+
+                    # Извлекаем медиа данные
+                    image_url = None
+                    video_url = None
+
+                    if post.get('media'):
+                        if post['media']['type'] == 'photo':
+                            image_url = post['media']['url']
+                        elif post['media']['type'] == 'video':
+                            video_url = post['media']['url']
+                            if not image_url and post['media'].get('thumbnail'):
+                                image_url = post['media']['thumbnail']
+
+                    # Оценка времени чтения (200 слов в минуту)
+                    word_count = len(post['text'].split()) if post.get('text') else 0
+                    reading_time = max(1, word_count // 200)
+
+                    news_item = NewsItem(
+                        title=post['title'],
+                        content=post['text'],
+                        link=post['link'],
+                        publish_date=datetime.fromisoformat(post['date'].replace('Z', '+00:00')),
+                        category=post['category'],
+                        image_url=image_url,
+                        video_url=video_url,
+                        reading_time=reading_time,
+                        views_count=0,
+                        author=post.get('source'),
+                        subtitle=None
+                    )
+
+                    news_items.append(news_item)
+
+                if news_items:
+                    db.bulk_save_objects(news_items)
+                    db.commit()
+                    logger.info(f"Saved {len(news_items)} new items to database")
+                else:
+                    logger.info("No new items to save")
+
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке каналов: {e}")
+            if 'db' in locals():
+                db.rollback()
+                db.close()
