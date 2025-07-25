@@ -115,6 +115,14 @@ export class TelegramWebApp {
 
   public hapticFeedback(type: 'light' | 'medium' | 'heavy' = 'light') {
     if (!this.webApp?.HapticFeedback) return;
+
+    // Проверяем версию Telegram WebApp
+    const version = parseFloat(this.webApp.version || '6.0');
+    if (version < 6.1) {
+      // В старых версиях хаптик не поддерживается
+      return;
+    }
+
     this.webApp.HapticFeedback.impactOccurred(type);
   }
 
