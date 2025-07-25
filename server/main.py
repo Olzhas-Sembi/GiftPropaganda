@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import time
 from server.db import Base, NewsItem, NewsSource
@@ -58,11 +58,62 @@ def init_db():
 
     raise Exception("Не удалось подключиться к базе данных после нескольких попыток")
 
+def apply_migrations():
+    """Применяет миграции базы данных"""
+    try:
+        global engine
+        logger.info("Проверка и применение миграций...")
+
+        with engine.connect() as connection:
+            # Проверяем, существуют ли новые поля
+            result = connection.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'news_items' 
+                AND column_name IN ('image_url', 'video_url', 'reading_time', 'views_count', 'author', 'subtitle')
+            """))
+
+            existing_columns = [row[0] for row in result.fetchall()]
+            logger.info(f"Существующие новые поля: {existing_columns}")
+
+            # Добавляем поля, которых еще нет
+            fields_to_add = [
+                ('image_url', 'VARCHAR(1000)'),
+                ('video_url', 'VARCHAR(1000)'),
+                ('reading_time', 'INTEGER'),
+                ('views_count', 'INTEGER'),
+                ('author', 'VARCHAR(200)'),
+                ('subtitle', 'VARCHAR(500)')
+            ]
+
+            for field_name, field_type in fields_to_add:
+                if field_name not in existing_columns:
+                    logger.info(f"Добавляем поле {field_name}...")
+                    connection.execute(text(f"""
+                        ALTER TABLE news_items 
+                        ADD COLUMN {field_name} {field_type}
+                    """))
+                    connection.commit()
+                    logger.info(f"Поле {field_name} добавлено успешно")
+                else:
+                    logger.info(f"Поле {field_name} уже существует")
+
+            logger.info("Миграции применены успешно!")
+
+    except Exception as e:
+        logger.error(f"Ошибка при применении миграций: {e}")
+        # Не прерываем запуск приложения из-за ошибки миграции
+        pass
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    global engine, SessionLocal
-    engine, SessionLocal = init_db()
+    logger.info("Запуск приложения...")
+
+    # Инициализация базы данных
+    init_db()
+
+    # Применение миграций
+    apply_migrations()
 
     # Настройка webhook
     try:
