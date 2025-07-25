@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://c614d13bcb7d.ngrok-free.app/api/news/';
+const API_URL = 'https://giftpropaganda-backend.onrender.com/api/news/';
 
 export interface NewsItem {
   id: number;

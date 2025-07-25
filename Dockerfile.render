@@ -1,0 +1,27 @@
+# Production Dockerfile для Render
+FROM python:3.12-slim
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Копируем requirements и устанавливаем зависимости
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копируем код приложения
+COPY server/ ./server/
+COPY .env ./
+
+# Создаем пользователя для безопасности
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Экспонируем порт
+EXPOSE 8000
+
+# Команда запуска
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
