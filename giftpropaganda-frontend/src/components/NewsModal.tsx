@@ -30,7 +30,7 @@ const ModalOverlay = styled.div<{ $isOpen: boolean }>`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
   z-index: 1000;
   opacity: ${props => props.$isOpen ? 1 : 0};
@@ -49,234 +49,200 @@ const ModalContainer = styled.div<{ $isOpen: boolean }>`
   transform: translateY(${props => props.$isOpen ? '0' : '100%'});
   transition: transform 0.3s ease;
   overflow-y: auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
 `;
 
-const ModalHeader = styled.header`
+const ModalHeader = styled.div`
   position: sticky;
   top: 0;
   background: var(--tg-theme-bg-color, #0f0f0f);
+  padding: 12px 16px;
   border-bottom: 1px solid var(--tg-theme-hint-color, #333);
-  padding: 16px;
-  z-index: 100;
   backdrop-filter: blur(10px);
-`;
-
-const HeaderControls = styled.div`
+  z-index: 10;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
 `;
 
-const CloseButton = styled.button`
-  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
-  border: 1px solid var(--tg-theme-hint-color, #333);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+const BackButton = styled.button`
+  background: none;
+  border: none;
+  color: var(--tg-theme-button-color, #0088cc);
+  font-size: 16px;
   cursor: pointer;
-  color: var(--tg-theme-text-color, #ffffff);
-  font-size: 18px;
-  transition: all 0.2s ease;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
 
   &:hover {
-    background: var(--tg-theme-hint-color, #333);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
+    background: var(--tg-theme-secondary-bg-color, #1a1a1a);
   }
 `;
 
 const ShareButton = styled.button`
-  background: var(--tg-theme-button-color, #0088cc);
+  background: none;
   border: none;
-  border-radius: 20px;
-  padding: 8px 16px;
-  color: var(--tg-theme-button-text-color, #ffffff);
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--tg-theme-text-color, #ffffff);
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+    background: var(--tg-theme-secondary-bg-color, #1a1a1a);
   }
+`;
 
-  &:active {
-    transform: translateY(0);
-  }
+const ModalContent = styled.div`
+  flex: 1;
+  padding: 0 16px 40px 16px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
 `;
 
 const ArticleHeader = styled.div`
-  margin-bottom: 16px;
+  margin: 20px 0;
 `;
 
-const CategoryBadge = styled.span<{ $category: string }>`
+const CategoryBadge = styled.span`
   display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background: ${props => getCategoryColor(props.$category)};
-  color: #ffffff;
+  padding: 4px 8px;
+  background: var(--tg-theme-button-color, #0088cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
   margin-bottom: 12px;
 `;
 
 const ArticleTitle = styled.h1`
-  margin: 0 0 8px 0;
   font-size: 24px;
   font-weight: 700;
   line-height: 1.3;
+  margin: 0 0 16px 0;
   color: var(--tg-theme-text-color, #ffffff);
 `;
 
-const ArticleSubtitle = styled.h2`
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 1.4;
+const ArticleSubtitle = styled.p`
+  font-size: 16px;
+  line-height: 1.5;
   color: var(--tg-theme-hint-color, #999);
+  margin: 0 0 20px 0;
 `;
 
-const ArticleMetadata = styled.div`
+const ArticleMeta = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--tg-theme-hint-color, #333);
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #888);
+  flex-wrap: wrap;
 `;
 
-const MetadataItem = styled.span`
+const MetaItem = styled.span`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const ArticleContent = styled.div`
-  padding: 24px 16px;
-  max-width: 700px;
-  margin: 0 auto;
-`;
-
-const FullMediaViewer = styled(MediaViewer)`
-  margin: 20px 0;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-`;
-
-const ArticleText = styled.div`
   font-size: 16px;
   line-height: 1.6;
   color: var(--tg-theme-text-color, #ffffff);
-  
+
   p {
     margin: 0 0 16px 0;
   }
-  
-  a {
-    color: var(--tg-theme-link-color, #0088cc);
-    text-decoration: none;
-    
-    &:hover {
-      text-decoration: underline;
-    }
+
+  h2, h3, h4 {
+    margin: 24px 0 12px 0;
+    color: var(--tg-theme-text-color, #ffffff);
+  }
+
+  ul, ol {
+    margin: 0 0 16px 0;
+    padding-left: 20px;
+  }
+
+  blockquote {
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+    border-left: 4px solid var(--tg-theme-button-color, #0088cc);
+    border-radius: 0 4px 4px 0;
+  }
+
+  code {
+    background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
   }
 `;
 
-const SourceLink = styled.div`
+const InteractionBar = styled.div`
   margin-top: 32px;
-  padding: 16px;
-  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
-  border: 1px solid var(--tg-theme-hint-color, #333);
-  border-radius: 12px;
-  font-size: 14px;
-  color: var(--tg-theme-hint-color, #999);
-  text-align: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--tg-theme-hint-color, #333);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
-const SourceLinkButton = styled.button`
-  background: transparent;
-  border: 1px solid var(--tg-theme-hint-color, #333);
-  border-radius: 8px;
-  padding: 8px 16px;
-  color: var(--tg-theme-text-color, #ffffff);
+const InteractionButtons = styled.div`
+  display: flex;
+  gap: 20px;
+`;
+
+const InteractionButton = styled.button`
+  background: none;
+  border: none;
+  color: var(--tg-theme-hint-color, #888);
   font-size: 14px;
   cursor: pointer;
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: var(--tg-theme-button-color, #0088cc);
+    background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+    color: var(--tg-theme-text-color, #ffffff);
+  }
+
+  &.active {
     color: var(--tg-theme-button-color, #0088cc);
   }
 `;
 
-const RecommendationsSection = styled.div`
-  margin-top: 32px;
-  padding: 20px 16px;
-  background: var(--tg-theme-secondary-bg-color, #1a1a1a);
-  border-top: 1px solid var(--tg-theme-hint-color, #333);
-`;
-
-const RecommendationsTitle = styled.h3`
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--tg-theme-text-color, #ffffff);
-  text-align: center;
-`;
-
-const RecommendationCard = styled.div`
-  background: var(--tg-theme-bg-color, #0f0f0f);
-  border: 1px solid var(--tg-theme-hint-color, #333);
+const ReadOriginalButton = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--tg-theme-button-color, #0088cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  text-decoration: none;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  transition: background 0.2s ease;
 
   &:hover {
-    border-color: var(--tg-theme-button-color, #0088cc);
-    transform: translateY(-1px);
+    background: #0077b3;
   }
 `;
 
-const RecommendationTitle = styled.h4`
-  margin: 0 0 4px 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tg-theme-text-color, #ffffff);
-  line-height: 1.3;
-`;
-
-const RecommendationMeta = styled.div`
-  font-size: 12px;
-  color: var(--tg-theme-hint-color, #999);
-`;
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    'gifts': '#ff6b6b',
-    'crypto': '#4ecdc4',
-    'tech': '#45b7d1',
-    'community': '#96ceb4',
-    'gaming': '#feca57',
-    'news': '#ff9ff3',
-    'default': '#6c5ce7'
-  };
-  return colors[category] || colors.default;
-}
-
-function formatTimeAgo(dateString: string): string {
+const formatTimeAgo = (dateString: string): string => {
   const now = new Date();
   const date = new Date(dateString);
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -285,132 +251,134 @@ function formatTimeAgo(dateString: string): string {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} мин назад`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ч назад`;
   return `${Math.floor(diffInSeconds / 86400)} дн назад`;
-}
-
-function estimateReadingTime(text: string): number {
-  const wordsPerMinute = 200;
-  const words = text.split(' ').length;
-  return Math.ceil(words / wordsPerMinute);
-}
+};
 
 const NewsModal: React.FC<NewsModalProps> = ({ news, isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
-      TelegramWebApp.triggerHapticFeedback('notification');
+      document.body.style.overflow = 'hidden';
+      TelegramWebApp.expand();
+    } else {
+      document.body.style.overflow = 'auto';
     }
+
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  const handleBackClick = () => {
+    TelegramWebApp.triggerHapticFeedback('impact');
+    onClose();
+  };
 
   const handleShare = () => {
     TelegramWebApp.triggerHapticFeedback('impact');
     if (navigator.share) {
       navigator.share({
         title: news.title,
-        text: news.content.substring(0, 100) + '...',
+        text: news.content.substring(0, 200) + '...',
         url: news.link
       });
-    } else {
-      // Fallback для старых браузеров
-      navigator.clipboard.writeText(news.link);
-      TelegramWebApp.showAlert('Ссылка скопирована в буфер обмена');
     }
   };
 
-  const handleSourceClick = () => {
+  const handleInteraction = (type: string) => {
     TelegramWebApp.triggerHapticFeedback('impact');
-    TelegramWebApp.openLink(news.link);
+    // Здесь можно добавить логику для лайков, закладок и т.д.
+    console.log(`Interaction: ${type}`);
   };
-
-  const handleClose = () => {
-    TelegramWebApp.triggerHapticFeedback('impact');
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  const readingTime = news.reading_time || estimateReadingTime(news.content);
-  const hasMedia = news.image_url || news.video_url;
 
   return (
-    <ModalOverlay $isOpen={isOpen} onClick={handleClose}>
+    <ModalOverlay $isOpen={isOpen} onClick={onClose}>
       <ModalContainer $isOpen={isOpen} onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <HeaderControls>
-            <CloseButton onClick={handleClose}>×</CloseButton>
-            <ShareButton onClick={handleShare}>Поделиться</ShareButton>
-          </HeaderControls>
+          <BackButton onClick={handleBackClick}>
+            ← Назад
+          </BackButton>
+          <ShareButton onClick={handleShare}>
+            📤
+          </ShareButton>
+        </ModalHeader>
 
+        <ModalContent>
           <ArticleHeader>
-            <CategoryBadge $category={news.category}>
-              {news.category.toUpperCase()}
-            </CategoryBadge>
-
+            <CategoryBadge>{news.category.toUpperCase()}</CategoryBadge>
             <ArticleTitle>{news.title}</ArticleTitle>
-
             {news.subtitle && (
               <ArticleSubtitle>{news.subtitle}</ArticleSubtitle>
             )}
 
-            <ArticleMetadata>
-              <MetadataItem>
-                📅 {formatTimeAgo(news.publish_date)}
-              </MetadataItem>
-
-              <MetadataItem>
-                📖 {readingTime} мин чтения
-              </MetadataItem>
-
-              {news.views_count !== undefined && (
-                <MetadataItem>
-                  👁️ {news.views_count} просмотров
-                </MetadataItem>
-              )}
-
+            <ArticleMeta>
               {news.author && (
-                <MetadataItem>
+                <MetaItem>
                   👤 {news.author}
-                </MetadataItem>
+                </MetaItem>
               )}
-            </ArticleMetadata>
+              <MetaItem>
+                🕒 {formatTimeAgo(news.publish_date)}
+              </MetaItem>
+              {news.reading_time && (
+                <MetaItem>
+                  📖 {news.reading_time} мин чтения
+                </MetaItem>
+              )}
+              {news.views_count !== undefined && (
+                <MetaItem>
+                  👁️ {news.views_count} просмотров
+                </MetaItem>
+              )}
+            </ArticleMeta>
           </ArticleHeader>
-        </ModalHeader>
 
-        <ArticleContent>
-          {hasMedia && (
-            <FullMediaViewer
+          {(news.image_url || news.video_url) && (
+            <MediaViewer
               imageUrl={news.image_url}
               videoUrl={news.video_url}
               title={news.title}
             />
           )}
 
-          <ArticleText>
-            {news.content.split('\n').map((paragraph, index) =>
-              paragraph.trim() && (
-                <p key={index}>{paragraph}</p>
-              )
-            )}
-          </ArticleText>
+          <ArticleContent>
+            {news.content.split('\n').map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </ArticleContent>
 
-          <SourceLink>
-            Источник
-            <SourceLinkButton onClick={handleSourceClick}>
-              Читать оригинал
-            </SourceLinkButton>
-          </SourceLink>
-        </ArticleContent>
+          <InteractionBar>
+            <InteractionButtons>
+              <InteractionButton onClick={() => handleInteraction('like')}>
+                🔥 +2
+              </InteractionButton>
+              <InteractionButton onClick={() => handleInteraction('comment')}>
+                💬 0
+              </InteractionButton>
+              <InteractionButton onClick={() => handleInteraction('bookmark')}>
+                🔖 3
+              </InteractionButton>
+            </InteractionButtons>
 
-        <RecommendationsSection>
-          <RecommendationsTitle>Рекомендуем к прочтению</RecommendationsTitle>
-
-          <RecommendationCard>
-            <RecommendationTitle>
-              Похожие новости появятся здесь
-            </RecommendationTitle>
-            <RecommendationMeta>
-              Система рекомендаций в разработке
-            </RecommendationMeta>
-          </RecommendationCard>
-        </RecommendationsSection>
+            <ReadOriginalButton href={news.link} target="_blank" rel="noopener noreferrer">
+              Читать оригинал 🔗
+            </ReadOriginalButton>
+          </InteractionBar>
+        </ModalContent>
       </ModalContainer>
     </ModalOverlay>
   );

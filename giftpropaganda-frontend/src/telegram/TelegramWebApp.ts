@@ -23,6 +23,12 @@ class TelegramWebApp {
     return this.webApp !== null;
   }
 
+  expand() {
+    if (this.webApp && this.webApp.expand) {
+      this.webApp.expand();
+    }
+  }
+
   getThemeParams() {
     if (this.webApp) {
       return this.webApp.themeParams;
@@ -48,63 +54,43 @@ class TelegramWebApp {
     if (this.webApp && this.webApp.HapticFeedback) {
       if (type === 'impact') {
         this.webApp.HapticFeedback.impactOccurred('light');
-      } else {
+      } else if (type === 'notification') {
         this.webApp.HapticFeedback.notificationOccurred('success');
       }
     }
   }
 
-  showAlert(message: string) {
-    if (this.webApp) {
-      this.webApp.showAlert(message);
-    } else {
-      alert(message);
+  showPopup(title: string, message: string, buttons?: any[]) {
+    if (this.webApp && this.webApp.showPopup) {
+      return this.webApp.showPopup({
+        title,
+        message,
+        buttons: buttons || [{ type: 'ok' }]
+      });
     }
   }
 
-  showConfirm(message: string, callback: (confirmed: boolean) => void) {
-    if (this.webApp) {
-      this.webApp.showConfirm(message, callback);
-    } else {
-      const confirmed = window.confirm(message);
-      callback(confirmed);
+  close() {
+    if (this.webApp && this.webApp.close) {
+      this.webApp.close();
     }
   }
 
   openLink(url: string) {
-    if (this.webApp) {
+    if (this.webApp && this.webApp.openLink) {
       this.webApp.openLink(url);
     } else {
       window.open(url, '_blank');
     }
   }
 
-  close() {
-    if (this.webApp) {
-      this.webApp.close();
-    }
-  }
-
-  setMainButton(params: {
-    text: string;
-    color?: string;
-    isVisible?: boolean;
-    onClick?: () => void;
-  }) {
+  setMainButton(text: string, callback?: () => void) {
     if (this.webApp && this.webApp.MainButton) {
-      const { text, color = '#0088cc', isVisible = true, onClick } = params;
+      this.webApp.MainButton.text = text;
+      this.webApp.MainButton.show();
 
-      this.webApp.MainButton.setText(text);
-      this.webApp.MainButton.color = color;
-
-      if (onClick) {
-        this.webApp.MainButton.onClick(onClick);
-      }
-
-      if (isVisible) {
-        this.webApp.MainButton.show();
-      } else {
-        this.webApp.MainButton.hide();
+      if (callback) {
+        this.webApp.MainButton.onClick(callback);
       }
     }
   }
@@ -116,4 +102,7 @@ class TelegramWebApp {
   }
 }
 
-export default new TelegramWebApp();
+// Создаем единственный экземпляр
+const telegramWebApp = new TelegramWebApp();
+
+export default telegramWebApp;
