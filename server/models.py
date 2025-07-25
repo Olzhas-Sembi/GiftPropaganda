@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -22,12 +22,20 @@ class Source(Base):
 class NewsItem(Base):
     __tablename__ = "news_items"
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(Integer, ForeignKey("sources.id"), nullable=True)  # Внешний ключ теперь допускает NULL
-    title = Column(String(200), index=True)
-    content = Column(String)
-    link = Column(String(255))
+    source_id = Column(Integer, ForeignKey("sources.id"), nullable=True)  # Разрешаем NULL
+    title = Column(String(500), index=True)  # Увеличиваем размер для длинных заголовков
+    content = Column(Text)  # Используем Text для длинного контента
+    link = Column(String(500))  # Увеличиваем размер для длинных ссылок
     publish_date = Column(DateTime)
     category = Column(String(50))
+
+    # Добавляем поля для медиа контента
+    media_type = Column(String(20), nullable=True)  # 'photo', 'video', null
+    media_url = Column(String(1000), nullable=True)  # URL медиа файла
+    media_thumbnail = Column(String(1000), nullable=True)  # URL превью (для видео)
+    media_width = Column(Integer, nullable=True)  # Ширина медиа
+    media_height = Column(Integer, nullable=True)  # Высота медиа
+
     source = relationship("Source", back_populates="news_items")
 
 class Keyword(Base):

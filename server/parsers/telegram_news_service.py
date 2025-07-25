@@ -148,7 +148,7 @@ class TelegramNewsService:
             return []
 
     def _parse_telegram_html(self, html_content: str, channel_data: Dict) -> List[Dict[str, Any]]:
-        """Парсинг HTML содержимого Telegram канала"""
+        """Парсинг HTML содержимого Telegram канала с поддержкой медиа"""
         import re
         from html import unescape
 
@@ -159,6 +159,11 @@ class TelegramNewsService:
         post_pattern = r'<div class="tgme_widget_message.*?</div>\s*</div>\s*</div>'
         text_pattern = r'<div class="tgme_widget_message_text.*?".*?>(.*?)</div>'
         date_pattern = r'<time.*?datetime="([^"]+)"'
+
+        # Паттерны для медиа контента
+        photo_pattern = r'<a.*?class="tgme_widget_message_photo_wrap.*?style="background-image:url\(&quot;([^&]+)&quot;\)"'
+        video_pattern = r'<video.*?src="([^"]+)".*?poster="([^"]*)".*?>'
+        video_thumb_pattern = r'<video.*?poster="([^"]+)".*?>'
 
         post_matches = re.findall(post_pattern, html_content, re.DOTALL)
 
@@ -179,6 +184,44 @@ class TelegramNewsService:
                 except:
                     pass
 
+            # Извлекаем медиа контент
+            media = None
+
+            # Проверяем на фото
+            photo_match = re.search(photo_pattern, post_html)
+            if photo_match:
+                photo_url = photo_match.group(1).replace('&amp;', '&')
+                media = {
+                    'type': 'photo',
+                    'url': photo_url,
+                    'thumbnail': photo_url,  # Для фото thumbnail = основное изображение
+                    'width': None,
+                    'height': None
+                }
+
+            # Проверяем на видео
+            video_match = re.search(video_pattern, post_html)
+            if video_match:
+                video_url = video_match.group(1)
+                thumbnail_url = video_match.group(2) if len(video_match.groups()) > 1 else None
+                media = {
+                    'type': 'video',
+                    'url': video_url,
+                    'thumbnail': thumbnail_url,
+                    'width': None,
+                    'height': None
+                }
+            elif not media:  # Если не нашли полное видео, ищем только thumbnail
+                video_thumb_match = re.search(video_thumb_pattern, post_html)
+                if video_thumb_match:
+                    media = {
+                        'type': 'video',
+                        'url': None,  # URL видео не найден
+                        'thumbnail': video_thumb_match.group(1),
+                        'width': None,
+                        'height': None
+                    }
+
             if text:  # Только если удалось извлечь текст
                 # Генерируем заголовок из первых слов
                 title = text.split('.')[0][:100] if text else f"Пост от {channel_data['name']}"
@@ -191,7 +234,8 @@ class TelegramNewsService:
                     'date': date,
                     'source': channel_data['name'],
                     'category': channel_data['category'],
-                    'channel': channel_data['username']
+                    'channel': channel_data['username'],
+                    'media': media  # Добавляем медиа данные
                 }
 
                 posts.append(post)

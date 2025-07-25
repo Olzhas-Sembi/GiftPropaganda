@@ -31,7 +31,20 @@ async def get_news(category: str = "all", limit: int = 50, db: Session = Depends
                 "content": item.content,
                 "link": item.link,
                 "publish_date": item.publish_date.isoformat() if item.publish_date else None,
-                "category": item.category
+                "category": item.category,
+                # Добавляем медиа данные
+                "media": {
+                    "type": item.media_type,
+                    "url": item.media_url,
+                    "thumbnail": item.media_thumbnail,
+                    "width": item.media_width,
+                    "height": item.media_height
+                } if item.media_type and item.media_url else None,
+                # Добавляем информацию об источнике
+                "source": {
+                    "name": item.source.name if item.source else "Unknown",
+                    "type": item.source.type if item.source else "unknown"
+                } if item.source else None
             }
             for item in news
         ]

@@ -17,18 +17,19 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Добавляем CORS middleware
+# Обновленные CORS настройки для всех доменов
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://gift-propaganda.vercel.app",
-        "https://giftpropaganda.onrender.com"  # Обновлен на реальный домен
+        "https://giftpropaganda.onrender.com",
+        "*"  # Временно разрешаем все домены для отладки
     ],
     allow_credentials=True,
-    allow_methods=["*"],  # Разрешаем все HTTP методы
-    allow_headers=["*"],  # Разрешаем все заголовки
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Настройка базы данных с повторными попытками
@@ -53,49 +54,66 @@ def init_db():
 
 def setup_webhook():
     """Настройка вебхука для Telegram"""
+    if not TOKEN or TOKEN == "YOUR_BOT_TOKEN":
+        logger.warning("Telegram token не настроен, пропускаем настройку webhook")
+        return
+
     url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
-    data = {"url": WEBHOOK_URL}
-    response = requests.post(url, data=data)
-    if response.status_code == 200:
-        logger.info("Webhook установлен успешно")
-    else:
-        logger.error(f"Ошибка установки вебхука: {response.text}")
+    data = {"url": f"{WEBHOOK_URL}/webhook"}
+    try:
+        response = requests.post(url, data=data)
+        if response.status_code == 200:
+            logger.info("Webhook установлен успешно")
+        else:
+            logger.error(f"Ошибка установки вебхука: {response.text}")
+    except Exception as e:
+        logger.error(f"Ошибка при настройке webhook: {e}")
 
 @app.on_event("startup")
 async def startup_event():
     """Событие при запуске приложения"""
     # Логируем переменные окружения для отладки
-    logger.info(f"DATABASE_URL: {DATABASE_URL[:50]}...")  # Показываем только начало для безопасности
+    logger.info(f"DATABASE_URL: {DATABASE_URL[:50]}...")
     logger.info(f"TOKEN: {'SET' if TOKEN else 'NOT SET'}")
     logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
     engine, SessionLocal = init_db()
     app.state.engine = engine
-    app.state.SessionLocal = SessionLocal  # Сохраняем SessionLocal
+    app.state.SessionLocal = SessionLocal
     setup_webhook()
+
+    # Запускаем периодическое обновление
     loop = asyncio.get_running_loop()
     loop.create_task(periodic_fetch())
 
 async def periodic_fetch():
     """Периодическое обновление новостей из Telegram-каналов"""
     while True:
-        session = app.state.SessionLocal()  # Создаём новую сессию
+        session = app.state.SessionLocal()
         try:
             await fetch_telegram_channels(session)
             logger.info("Периодическое обновление завершено")
         except Exception as e:
             logger.error(f"Ошибка при периодическом обновлении: {e}")
         finally:
-            session.close()  # Закрываем сессию
+            session.close()
         await asyncio.sleep(1800)  # 30 минут
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Событие при остановке приложения"""
     if hasattr(app.state, 'engine'):
-        app.state.engine.dispose()  # Корректно закрываем engine
+        app.state.engine.dispose()
         logger.info("База данных закрыта успешно")
 
+# Добавляем простой роут для проверки работы API
+@app.get("/")
+async def root():
+    return {"message": "Gift Propaganda News API", "status": "running"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "database": "connected"}
 
 app.include_router(news_router)
 
