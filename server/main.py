@@ -64,6 +64,11 @@ def setup_webhook():
 @app.on_event("startup")
 async def startup_event():
     """Событие при запуске приложения"""
+    # Логируем переменные окружения для отладки
+    logger.info(f"DATABASE_URL: {DATABASE_URL[:50]}...")  # Показываем только начало для безопасности
+    logger.info(f"TOKEN: {'SET' if TOKEN else 'NOT SET'}")
+    logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
+
     engine, SessionLocal = init_db()
     app.state.engine = engine
     app.state.SessionLocal = SessionLocal  # Сохраняем SessionLocal

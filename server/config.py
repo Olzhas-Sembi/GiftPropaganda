@@ -3,8 +3,11 @@ import os
 
 load_dotenv()
 
-# Настройки базы данных - исправлено для соответствия docker-compose.yml
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/giftpropaganda")
+# Настройки базы данных - приоритет переменным окружения
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # Для Render используем прямой URL
+    DATABASE_URL = "postgresql://giftpropaganda_db_user:cSLpUy9JBOc1KEzf7tBCEZtDxQU61KV5@dpg-d21dudp5pdvs73fqkaeg-a.oregon-postgres.render.com/giftpropaganda_db"
 
 # Настройки Telegram Bot
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -16,3 +19,9 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 # Другие настройки
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# Логирование для отладки
+if __name__ == "__main__":
+    print(f"DATABASE_URL: {DATABASE_URL}")
+    print(f"TOKEN: {TOKEN}")
+    print(f"WEBHOOK_URL: {WEBHOOK_URL}")
