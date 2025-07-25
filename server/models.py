@@ -21,20 +21,29 @@ class Source(Base):
 
 class NewsItem(Base):
     __tablename__ = "news_items"
+
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(Integer, ForeignKey("sources.id"), nullable=True)  # Разрешаем NULL
-    title = Column(String(500), index=True)  # Увеличиваем размер для длинных заголовков
-    content = Column(Text)  # Используем Text для длинного контента
-    link = Column(String(500))  # Увеличиваем размер для длинных ссылок
+    source_id = Column(Integer, ForeignKey("sources.id"), nullable=True)
+    title = Column(String(500), index=True)
+    content = Column(Text)
+    link = Column(String(500))
     publish_date = Column(DateTime)
     category = Column(String(50))
 
-    # Добавляем поля для медиа контента
-    media_type = Column(String(20), nullable=True)  # 'photo', 'video', null
-    media_url = Column(String(1000), nullable=True)  # URL медиа файла
-    media_thumbnail = Column(String(1000), nullable=True)  # URL превью (для видео)
-    media_width = Column(Integer, nullable=True)  # Ширина медиа
-    media_height = Column(Integer, nullable=True)  # Высота медиа
+    # Медиа-поля
+    media_type = Column(String(20), nullable=True)
+    media_url = Column(String(1000), nullable=True)
+    media_thumbnail = Column(String(1000), nullable=True)
+    media_width = Column(Integer, nullable=True)
+    media_height = Column(Integer, nullable=True)
+
+    # 🔥 ДОБАВЬ ЭТИ ПОЛЯ:
+    image_url = Column(String(1000), nullable=True)
+    video_url = Column(String(1000), nullable=True)
+    reading_time = Column(Integer, nullable=True)
+    views_count = Column(Integer, nullable=True)
+    author = Column(String(200), nullable=True)
+    subtitle = Column(String(500), nullable=True)
 
     source = relationship("Source", back_populates="news_items")
 
