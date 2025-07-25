@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/Dockerfile">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/Dockerfile" />
+              <option name="originalContent" value="FROM python:3.12&#10;WORKDIR /app&#10;CMD [&quot;uvicorn&quot;, &quot;server.main:app&quot;, &quot;--host&quot;, &quot;0.0.0.0&quot;, &quot;--port&quot;, &quot;8000&quot;]&#10;RUN pip install fastapi uvicorn sqlalchemy psycopg2-binary feedparser requests apscheduler aiohttp&#10;" />
+              <option name="updatedContent" value="FROM python:3.12&#10;WORKDIR /app&#10;COPY requirements.txt .&#10;RUN pip install -r requirements.txt&#10;COPY . .&#10;CMD [&quot;uvicorn&quot;, &quot;server.main:app&quot;, &quot;--host&quot;, &quot;0.0.0.0&quot;, &quot;--port&quot;, &quot;8000&quot;]" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/requirements.txt">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/requirements.txt" />
+              <option name="originalContent" value="&#10;&#10;&#10;" />
+              <option name="updatedContent" value="fastapi==0.104.1&#10;uvicorn[standard]==0.24.0&#10;sqlalchemy==2.0.23&#10;python-dotenv==1.0.0&#10;requests==2.31.0&#10;apscheduler==3.10.4&#10;aiohttp==3.9.1&#10;feedparser==6.0.10&#10;pydantic==2.5.0&#10;psycopg2-binary==2.9.9" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/.env">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/.env" />
+              <option name="updatedContent" value="# База данных&#10;DATABASE_URL=postgresql://user:password@db:5432/giftpropaganda&#10;&#10;# Telegram Bot&#10;TELEGRAM_BOT_TOKEN=your_bot_token_here&#10;WEBHOOK_URL=https://your-domain.com/telegram_webhook&#10;&#10;# Redis (опционально)&#10;REDIS_URL=redis://localhost:6379&#10;&#10;# Другие настройки&#10;DEBUG=False&#10;LOG_LEVEL=INFO" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/__init__.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/__init__.py" />
+              <option name="updatedContent" value="# Server package" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/api/__init__.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/api/__init__.py" />
+              <option name="updatedContent" value="# API package" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/api/news.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/api/news.py" />
+              <option name="originalContent" value="from fastapi import APIRouter, Depends, HTTPException&#10;from sqlalchemy.orm import Session&#10;from typing import List&#10;import logging&#10;from server.models import NewsItem&#10;from server.main import app&#10;&#10;logger = logging.getLogger(__name__)&#10;&#10;router = APIRouter(prefix=&quot;/api/news&quot;, tags=[&quot;news&quot;])&#10;&#10;def get_db():&#10;    SessionLocal = app.state.SessionLocal&#10;    db = SessionLocal()&#10;    try:&#10;        yield db&#10;    finally:&#10;        db.close()&#10;&#10;@router.get(&quot;/&quot;)&#10;async def get_news(category: str = &quot;all&quot;, limit: int = 50, db: Session = Depends(get_db)):&#10;    &quot;&quot;&quot;Получить новости&quot;&quot;&quot;&#10;    try:&#10;        query = db.query(NewsItem)&#10;        if category != &quot;all&quot;:&#10;            query = query.filter(NewsItem.category == category)&#10;        news = query.order_by(NewsItem.publish_date.desc()).limit(limit).all()&#10;        data = [&#10;            {&#10;                &quot;id&quot;: item.id,&#10;                &quot;title&quot;: item.title,&#10;                &quot;content&quot;: item.content,&#10;                &quot;link&quot;: item.link,&#10;                &quot;publish_date&quot;: item.publish_date.isoformat() if item.publish_date else None,&#10;                &quot;category&quot;: item.category&#10;            }&#10;            for item in news&#10;        ]&#10;        return {&#10;            &quot;status&quot;: &quot;success&quot;,&#10;            &quot;data&quot;: data,&#10;            &quot;message&quot;: &quot;Новости успешно получены&quot; if data else &quot;Нет новостей&quot;&#10;        }&#10;    except Exception as e:&#10;        logger.error(f&quot;Error getting news: {e}&quot;)&#10;        raise HTTPException(status_code=500, detail=&quot;Failed to fetch news&quot;)&#10;&#10;@router.get(&quot;/categories&quot;)&#10;async def get_categories():&#10;    &quot;&quot;&quot;Получить категории новостей&quot;&quot;&quot;&#10;    return {&#10;        &quot;status&quot;: &quot;success&quot;,&#10;        &quot;categories&quot;: [&quot;gifts&quot;, &quot;crypto&quot;, &quot;nft&quot;, &quot;tech&quot;, &quot;general&quot;]&#10;    }&#10;" />
+              <option name="updatedContent" value="from fastapi import APIRouter, Depends, HTTPException&#10;from sqlalchemy.orm import Session&#10;from typing import List&#10;import logging&#10;from server.models import NewsItem&#10;from server.db import SessionLocal  # Импортируем SessionLocal из db.py&#10;&#10;logger = logging.getLogger(__name__)&#10;&#10;router = APIRouter(prefix=&quot;/api/news&quot;, tags=[&quot;news&quot;])&#10;&#10;def get_db():&#10;    db = SessionLocal()&#10;    try:&#10;        yield db&#10;    finally:&#10;        db.close()&#10;&#10;@router.get(&quot;/&quot;)&#10;async def get_news(category: str = &quot;all&quot;, limit: int = 50, db: Session = Depends(get_db)):&#10;    &quot;&quot;&quot;Получить новости&quot;&quot;&quot;&#10;    try:&#10;        query = db.query(NewsItem)&#10;        if category != &quot;all&quot;:&#10;            query = query.filter(NewsItem.category == category)&#10;        news = query.order_by(NewsItem.publish_date.desc()).limit(limit).all()&#10;        data = [&#10;            {&#10;                &quot;id&quot;: item.id,&#10;                &quot;title&quot;: item.title,&#10;                &quot;content&quot;: item.content,&#10;                &quot;link&quot;: item.link,&#10;                &quot;publish_date&quot;: item.publish_date.isoformat() if item.publish_date else None,&#10;                &quot;category&quot;: item.category&#10;            }&#10;            for item in news&#10;        ]&#10;        return {&#10;            &quot;status&quot;: &quot;success&quot;,&#10;            &quot;data&quot;: data,&#10;            &quot;message&quot;: &quot;Новости успешно получены&quot; if data else &quot;Нет новостей&quot;&#10;        }&#10;    except Exception as e:&#10;        logger.error(f&quot;Error getting news: {e}&quot;)&#10;        raise HTTPException(status_code=500, detail=&quot;Failed to fetch news&quot;)&#10;&#10;@router.get(&quot;/categories&quot;)&#10;async def get_categories():&#10;    &quot;&quot;&quot;Получить категории новостей&quot;&quot;&quot;&#10;    return {&#10;        &quot;status&quot;: &quot;success&quot;,&#10;        &quot;categories&quot;: [&quot;gifts&quot;, &quot;crypto&quot;, &quot;nft&quot;, &quot;tech&quot;, &quot;general&quot;]&#10;    }" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/config.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/config.py" />
+              <option name="originalContent" value="from dotenv import load_dotenv&#10;import os&#10;&#10;load_dotenv()&#10;&#10;# Настройки базы данных&#10;DATABASE_URL = os.getenv(&quot;DATABASE_URL&quot;, &quot;postgresql://user:password@db:5432/giftpropaganda&quot;)&#10;&#10;# Настройки Telegram Bot&#10;TOKEN = os.getenv(&quot;TELEGRAM_BOT_TOKEN&quot;, &quot;&quot;)&#10;WEBHOOK_URL = os.getenv(&quot;WEBHOOK_URL&quot;, &quot;&quot;)&#10;&#10;# Настройки Redis (если используется)&#10;REDIS_URL = os.getenv(&quot;REDIS_URL&quot;, &quot;redis://localhost:6379&quot;)&#10;&#10;# Другие настройки&#10;DEBUG = os.getenv(&quot;DEBUG&quot;, &quot;False&quot;).lower() == &quot;true&quot;&#10;LOG_LEVEL = os.getenv(&quot;LOG_LEVEL&quot;, &quot;INFO&quot;)&#10;" />
+              <option name="updatedContent" value="from dotenv import load_dotenv&#10;import os&#10;&#10;load_dotenv()&#10;&#10;# Настройки базы данных - исправлено для соответствия docker-compose.yml&#10;DATABASE_URL = os.getenv(&quot;DATABASE_URL&quot;, &quot;postgresql://user:password@db:5432/giftpropaganda&quot;)&#10;&#10;# Настройки Telegram Bot&#10;TOKEN = os.getenv(&quot;TELEGRAM_BOT_TOKEN&quot;, &quot;&quot;)&#10;WEBHOOK_URL = os.getenv(&quot;WEBHOOK_URL&quot;, &quot;&quot;)&#10;&#10;# Настройки Redis (если используется)&#10;REDIS_URL = os.getenv(&quot;REDIS_URL&quot;, &quot;redis://localhost:6379&quot;)&#10;&#10;# Другие настройки&#10;DEBUG = os.getenv(&quot;DEBUG&quot;, &quot;False&quot;).lower() == &quot;true&quot;&#10;LOG_LEVEL = os.getenv(&quot;LOG_LEVEL&quot;, &quot;INFO&quot;)" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/db.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/db.py" />
+              <option name="updatedContent" value="from sqlalchemy import create_engine&#10;from sqlalchemy.orm import sessionmaker&#10;from server.config import DATABASE_URL&#10;from server.models import Base&#10;&#10;engine = create_engine(DATABASE_URL)&#10;SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)&#10;&#10;# Создание таблиц (если нужно)&#10;Base.metadata.create_all(bind=engine)&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/models.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/models.py" />
+              <option name="originalContent" value="from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text&#10;from sqlalchemy.ext.declarative import declarative_base&#10;from sqlalchemy.orm import relationship&#10;&#10;Base = declarative_base()&#10;&#10;class Source(Base):&#10;    __tablename__ = &quot;sources&quot;&#10;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    type = Column(String(50), nullable=False)  # &quot;telegram&quot; или &quot;rss&quot;&#10;    url = Column(String(500))  # URL для RSS или username для Telegram&#10;    name = Column(String(200), nullable=False)&#10;    chat_id = Column(String(100), nullable=True)  # Для Telegram-каналов с ботом-админом&#10;    category = Column(String(50), default=&quot;general&quot;)  # gifts, crypto, nft, tech, general&#10;    enabled = Column(Integer, default=1)  # 1 = включен, 0 = отключен&#10;&#10;    # Связь с новостями&#10;    news_items = relationship(&quot;NewsItem&quot;, back_populates=&quot;source&quot;)&#10;&#10;&#10;class NewsItem(Base):&#10;    __tablename__ = &quot;news_items&quot;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    source_id = Column(Integer, ForeignKey(&quot;sources.id&quot;))  # Внешний ключ&#10;    title = Column(String(200), index=True)&#10;    content = Column(String)&#10;    link = Column(String(255))&#10;    publish_date = Column(DateTime)&#10;    category = Column(String(50))&#10;    source = relationship(&quot;Source&quot;, back_populates=&quot;news_items&quot;)&#10;&#10;class Keyword(Base):&#10;    __tablename__ = &quot;keywords&quot;&#10;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    category = Column(String(50), nullable=False)&#10;    keyword = Column(String(100), nullable=False)&#10;    weight = Column(Integer, default=1)  # Вес ключевого слова для категоризации&#10;" />
+              <option name="updatedContent" value="from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text&#10;from sqlalchemy.ext.declarative import declarative_base&#10;from sqlalchemy.orm import relationship&#10;&#10;Base = declarative_base()&#10;&#10;class Source(Base):&#10;    __tablename__ = &quot;sources&quot;&#10;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    type = Column(String(50), nullable=False)  # &quot;telegram&quot; или &quot;rss&quot;&#10;    url = Column(String(500))  # URL для RSS или username для Telegram&#10;    name = Column(String(200), nullable=False)&#10;    chat_id = Column(String(100), nullable=True)  # Для Telegram-каналов с ботом-админом&#10;    category = Column(String(50), default=&quot;general&quot;)  # gifts, crypto, nft, tech, general&#10;    enabled = Column(Integer, default=1)  # 1 = включен, 0 = отключен&#10;&#10;    # Связь с новостями&#10;    news_items = relationship(&quot;NewsItem&quot;, back_populates=&quot;source&quot;)&#10;&#10;&#10;class NewsItem(Base):&#10;    __tablename__ = &quot;news_items&quot;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    source_id = Column(Integer, ForeignKey(&quot;sources.id&quot;), nullable=True)  # Внешний ключ теперь допускает NULL&#10;    title = Column(String(200), index=True)&#10;    content = Column(String)&#10;    link = Column(String(255))&#10;    publish_date = Column(DateTime)&#10;    category = Column(String(50))&#10;    source = relationship(&quot;Source&quot;, back_populates=&quot;news_items&quot;)&#10;&#10;class Keyword(Base):&#10;    __tablename__ = &quot;keywords&quot;&#10;&#10;    id = Column(Integer, primary_key=True, index=True)&#10;    category = Column(String(50), nullable=False)&#10;    keyword = Column(String(100), nullable=False)&#10;    weight = Column(Integer, default=1)  # Вес ключевого слова для категоризации" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/parsers/__init__.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/parsers/__init__.py" />
+              <option name="updatedContent" value="# Parsers package" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/parsers/rss.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/parsers/rss.py" />
+              <option name="updatedContent" value="import feedparser&#10;import logging&#10;from sqlalchemy.orm import Session&#10;from typing import List, Dict, Any&#10;&#10;logger = logging.getLogger(__name__)&#10;&#10;async def fetch_rss_feeds(session: Session) -&gt; List[Dict[str, Any]]:&#10;    &quot;&quot;&quot;Получение новостей из RSS источников&quot;&quot;&quot;&#10;    try:&#10;        logger.info(&quot;Fetching RSS feeds...&quot;)&#10;        &#10;        # Список RSS источников&#10;        rss_sources = [&#10;            {&quot;url&quot;: &quot;https://vc.ru/rss&quot;, &quot;name&quot;: &quot;VC.ru&quot;, &quot;category&quot;: &quot;tech&quot;},&#10;            {&quot;url&quot;: &quot;https://forklog.com/feed/&quot;, &quot;name&quot;: &quot;ForkLog&quot;, &quot;category&quot;: &quot;crypto&quot;}&#10;        ]&#10;        &#10;        articles = []&#10;        for source in rss_sources:&#10;            try:&#10;                feed = feedparser.parse(source[&quot;url&quot;])&#10;                for entry in feed.entries[:5]:  # Берем только 5 последних&#10;                    article = {&#10;                        &quot;title&quot;: entry.title,&#10;                        &quot;link&quot;: entry.link,&#10;                        &quot;description&quot;: getattr(entry, 'summary', ''),&#10;                        &quot;source&quot;: source[&quot;name&quot;],&#10;                        &quot;category&quot;: source[&quot;category&quot;]&#10;                    }&#10;                    articles.append(article)&#10;            except Exception as e:&#10;                logger.error(f&quot;Error parsing RSS {source['url']}: {e}&quot;)&#10;        &#10;        logger.info(f&quot;RSS feeds fetched successfully, {len(articles)} articles&quot;)&#10;        return articles&#10;        &#10;    except Exception as e:&#10;        logger.error(f&quot;Error fetching RSS feeds: {e}&quot;)&#10;        return []" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/server/utils/categorize.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/server/utils/categorize.py" />
+              <option name="updatedContent" value="import re&#10;from typing import List, Dict&#10;&#10;def categorize_content(title: str, content: str = &quot;&quot;) -&gt; str:&#10;    &quot;&quot;&quot;Автоматическая категоризация контента по ключевым словам&quot;&quot;&quot;&#10;    &#10;    # Ключевые слова для категорий&#10;    keywords = {&#10;        'gifts': ['подарок', 'подарки', 'бесплатно', 'халява', 'промокод', 'скидка', 'акция', 'розыгрыш'],&#10;        'crypto': ['криптовалюта', 'биткоин', 'bitcoin', 'ethereum', 'блокчейн', 'деф', 'defi', 'btc', 'eth'],&#10;        'nft': ['nft', 'нфт', 'токен', 'коллекция', 'opensea', 'digital art', 'метавселенная'],&#10;        'tech': ['технологии', 'it', 'ит', 'программирование', 'разработка', 'стартап', 'ai', 'ии']&#10;    }&#10;    &#10;    text = (title + &quot; &quot; + content).lower()&#10;    &#10;    # Подсчитываем совпадения для каждой категории&#10;    category_scores = {}&#10;    for category, words in keywords.items():&#10;        score = sum(1 for word in words if word in text)&#10;        if score &gt; 0:&#10;            category_scores[category] = score&#10;    &#10;    if not category_scores:&#10;        return 'general'&#10;    &#10;    # Возвращаем категорию с наибольшим количеством совпадений&#10;    return max(category_scores, key=category_scores.get)&#10;&#10;def extract_keywords(text: str) -&gt; List[str]:&#10;    &quot;&quot;&quot;Извлечение ключевых слов из текста&quot;&quot;&quot;&#10;    # Простое извлечение слов длиннее 3 символов&#10;    words = re.findall(r'\b\w{4,}\b', text.lower())&#10;    return list(set(words))  # Уникальные слова" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
