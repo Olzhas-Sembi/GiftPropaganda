@@ -61,7 +61,10 @@ def apply_migrations():
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name = 'news_items' 
-                AND column_name IN ('image_url', 'video_url', 'reading_time', 'views_count', 'author', 'subtitle')
+                AND column_name IN (
+                    'image_url', 'video_url', 'reading_time', 'views_count', 
+                    'author', 'subtitle', 'created_at', 'updated_at'
+                )
             """))
 
             existing_columns = [row[0] for row in result.fetchall()]
@@ -74,7 +77,9 @@ def apply_migrations():
                 ('reading_time', 'INTEGER'),
                 ('views_count', 'INTEGER'),
                 ('author', 'VARCHAR(200)'),
-                ('subtitle', 'VARCHAR(500)')
+                ('subtitle', 'VARCHAR(500)'),
+                ('created_at', 'TIMESTAMP DEFAULT NOW()'),
+                ('updated_at', 'TIMESTAMP DEFAULT NOW()')
             ]
 
             for field_name, field_type in fields_to_add:
