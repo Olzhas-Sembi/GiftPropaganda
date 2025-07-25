@@ -7,21 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import time
-from server.db import Base, NewsItem, NewsSource
+
+# Исправленные импорты
+from server.db import Base, NewsItem, NewsSource, engine, SessionLocal, create_tables
 from server.parsers.telegram_news_service import TelegramNewsService
 from server.config import TOKEN, WEBHOOK_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Глобальные переменные для БД
-engine = None
-SessionLocal = None
-
 def init_db():
     """Инициализация базы данных с повторными попытками"""
-    global engine, SessionLocal
-
     # Проверяем переменные окружения
     database_url = os.getenv('DATABASE_URL', 'postgresql://user:password@db:5432/giftpropaganda')
     token = os.getenv('TOKEN')
@@ -36,19 +32,15 @@ def init_db():
     max_attempts = 10
     for attempt in range(1, max_attempts + 1):
         try:
-            engine = create_engine(database_url)
-
             # Проверяем подключение
             with engine.connect() as connection:
                 logger.info("Успешное подключение к базе данных")
 
             # Создаем таблицы
-            Base.metadata.create_all(bind=engine)
-
-            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            create_tables()
 
             logger.info("База данных инициализирована успешно")
-            return engine, SessionLocal
+            return
 
         except Exception as e:
             logger.warning(f"Попытка {attempt}/{max_attempts} подключения к базе: {e}")
@@ -61,7 +53,6 @@ def init_db():
 def apply_migrations():
     """Применяет миграции базы данных"""
     try:
-        global engine
         logger.info("Проверка и применение миграций...")
 
         with engine.connect() as connection:
