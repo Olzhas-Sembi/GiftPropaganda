@@ -3,11 +3,17 @@ import os
 
 load_dotenv()
 
-# Настройки базы данных - приоритет переменным окружения
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    # Для Render используем прямой URL
-    DATABASE_URL = "postgresql://giftpropaganda_db_user:cSLpUy9JBOc1KEzf7tBCEZtDxQU61KV5@dpg-d21dudp5pdvs73fqkaeg-a.oregon-postgres.render.com/giftpropaganda_db"
+# Настройки базы данных - для Render
+# Временно жестко прописываем URL для Render
+DATABASE_URL = "postgresql://giftpropaganda_db_user:cSLpUy9JBOc1KEzf7tBCEZtDxQU61KV5@dpg-d21dudp5pdvs73fqkaeg-a.oregon-postgres.render.com/giftpropaganda_db"
+
+# Проверяем переменную окружения (если будет установлена в Render)
+env_db_url = os.getenv("DATABASE_URL")
+if env_db_url:
+    DATABASE_URL = env_db_url
+    print(f"Using DATABASE_URL from environment: {DATABASE_URL[:50]}...")
+else:
+    print(f"Using hardcoded DATABASE_URL for Render: {DATABASE_URL[:50]}...")
 
 # Настройки Telegram Bot
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
