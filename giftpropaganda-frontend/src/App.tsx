@@ -50,13 +50,17 @@ const Content = styled.p`
   font-size: 0.9em;
 `;
 
-const Link = styled.a`
-  color: #0088cc;
+const SourceLink = styled.a`
+  color: #bbb;
+  font-size: 0.75em;
+  display: block;
+  margin-top: 10px;
   text-decoration: none;
-  font-weight: bold;
+  word-break: break-all;
 
   &:hover {
     text-decoration: underline;
+    color: #888;
   }
 `;
 
@@ -96,12 +100,14 @@ const App: React.FC = () => {
               <NewsItemCard key={item.id}>
                 <Title>{item.title}</Title>
                 <Content>{item.content}</Content>
-                <Link href={item.link} target="_blank" rel="noopener noreferrer">
-                  Читать полностью
-                </Link>
                 <CategoryDate>
                   Категория: {item.category} | Дата: {new Date(item.publish_date).toLocaleDateString()}
                 </CategoryDate>
+                {item.link && (
+                  <SourceLink href={item.link} target="_blank" rel="noopener noreferrer">
+                    Источник
+                  </SourceLink>
+                )}
               </NewsItemCard>
             ))}
           </NewsList>

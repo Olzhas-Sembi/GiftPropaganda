@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://c614d13bcb7d.ngrok-free.app/api/news';
+const API_URL = 'https://c614d13bcb7d.ngrok-free.app/api/news/';
 
 export interface NewsItem {
   id: number;
@@ -18,6 +18,20 @@ export interface NewsResponse {
 }
 
 export const fetchNews = async (): Promise<NewsResponse> => {
-  const response = await axios.get<NewsResponse>(API_URL);
-  return response.data;
+  try {
+    const response = await axios.get<NewsResponse>(API_URL, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    console.log('API response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Ошибка при загрузке новостей:', error);
+    return {
+      status: 'error',
+      data: [],
+      message: 'Ошибка загрузки новостей (frontend)'
+    };
+  }
 };

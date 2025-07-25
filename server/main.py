@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
@@ -15,6 +16,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Добавляем CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Разрешаем запросы с фронтенда
+    allow_credentials=True,
+    allow_methods=["*"],  # Разрешаем все HTTP методы
+    allow_headers=["*"],  # Разрешаем все заголовки
+)
 
 # Настройка базы данных с повторными попытками
 def init_db():
@@ -75,7 +85,6 @@ async def shutdown_event():
     if hasattr(app.state, 'engine'):
         app.state.engine.dispose()  # Корректно закрываем engine
         logger.info("База данных закрыта успешно")
-
 
 
 app.include_router(news_router)
