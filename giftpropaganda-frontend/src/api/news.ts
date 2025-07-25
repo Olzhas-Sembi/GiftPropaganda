@@ -11,6 +11,8 @@ export interface MediaItem {
   thumbnail?: string;
   width?: number;
   height?: number;
+  duration?: number; // Для видео
+  size?: number; // Размер файла
 }
 
 export interface NewsItem {
@@ -20,17 +22,22 @@ export interface NewsItem {
   link: string;
   publish_date: string;
   category: string;
-  media?: MediaItem; // Добавляем поддержку медиа
-  source?: {
-    name: string;
-    type: string;
-  };
+  image_url?: string; // Основное изображение
+  video_url?: string; // Основное видео
+  reading_time?: number;
+  views_count?: number;
+  author?: string;
+  subtitle?: string;
+  media?: MediaItem; // Дополнительное медиа
 }
 
 export interface NewsResponse {
   status: string;
   data: NewsItem[];
   message: string;
+  total?: number;
+  page?: number;
+  limit?: number;
 }
 
 export const fetchNews = async (category?: string): Promise<NewsResponse> => {
@@ -43,7 +50,7 @@ export const fetchNews = async (category?: string): Promise<NewsResponse> => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      timeout: 10000 // 10 секунд таймаут
+      timeout: 15000 // Увеличиваем таймаут до 15 секунд
     });
 
     console.log('API response:', response.data);
@@ -51,18 +58,48 @@ export const fetchNews = async (category?: string): Promise<NewsResponse> => {
   } catch (error: any) {
     console.error('Ошибка при загрузке новостей:', error);
 
-    // Возвращаем более детальную информацию об ошибке
-    let errorMessage = 'Ошибка загрузки новостей';
     if (error.response) {
-      errorMessage = `Ошибка сервера: ${error.response.status}`;
+      throw new Error(`Ошибка сервера: ${error.response.status} ${error.response.statusText}`);
     } else if (error.request) {
-      errorMessage = 'Нет ответа от сервера';
+      throw new Error('Нет ответа от сервера. Проверьте подключение к интернету.');
+    } else {
+      throw new Error(`Ошибка запроса: ${error.message}`);
     }
+  }
+};
 
-    return {
-      status: 'error',
-      data: [],
-      message: errorMessage
-    };
+export const fetchNewsById = async (id: number): Promise<NewsItem> => {
+  try {
+    const response = await axios.get<NewsItem>(`${API_URL}${id}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error('Ошибка при загрузке новости:', error);
+    throw new Error('Не удалось загрузить новость');
+  }
+};
+
+export const fetchCategories = async (): Promise<string[]> => {
+  try {
+    const response = await axios.get<{status: string, data: string[]}>(`${API_URL}categories/`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    return response.data.data;
+  } catch (error: any) {
+    console.error('Ошибка при загрузке категорий:', error);
+    return ['gifts', 'crypto', 'tech', 'community', 'gaming']; // fallback
   }
 };

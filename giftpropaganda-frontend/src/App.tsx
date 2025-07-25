@@ -1,25 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { fetchNews } from './api/news';
+import { fetchNews, NewsItem } from './api/news';
 import NewsModal from './components/NewsModal';
 import SearchBar from './components/SearchBar';
+import MediaViewer from './components/MediaViewer';
 import TelegramWebApp from './telegram/TelegramWebApp';
-
-// Типы данных
-interface NewsItem {
-  id: number;
-  title: string;
-  content: string;
-  link: string;
-  publish_date: string;
-  category: string;
-  image_url?: string;
-  video_url?: string;
-  reading_time?: number;
-  views_count?: number;
-  author?: string;
-  subtitle?: string;
-}
 
 // Стилизованные компоненты
 const AppContainer = styled.div`
@@ -107,7 +92,7 @@ const NewsCard = styled.div<{ $isNew?: boolean }>`
   background: var(--tg-theme-secondary-bg-color, #1a1a1a);
   border: 1px solid var(--tg-theme-hint-color, #333);
   border-radius: 12px;
-  padding: 20px;
+  padding: 0;
   margin-bottom: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -123,6 +108,7 @@ const NewsCard = styled.div<{ $isNew?: boolean }>`
       width: 4px;
       height: 100%;
       background: var(--tg-theme-button-color, #0088cc);
+      z-index: 1;
     }
   `}
 
@@ -137,6 +123,10 @@ const NewsCard = styled.div<{ $isNew?: boolean }>`
   }
 `;
 
+const NewsCardContent = styled.div`
+  padding: 16px;
+`;
+
 const NewsHeader = styled.div`
   display: flex;
   align-items: flex-start;
@@ -144,16 +134,7 @@ const NewsHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-const NewsImage = styled.img`
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  object-fit: cover;
-  background: var(--tg-theme-hint-color, #333);
-  flex-shrink: 0;
-`;
-
-const NewsContent = styled.div`
+const NewsTextContent = styled.div`
   flex: 1;
   min-width: 0;
 `;
@@ -176,7 +157,7 @@ const NewsPreview = styled.p`
   line-height: 1.5;
   color: var(--tg-theme-hint-color, #999);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
@@ -186,7 +167,8 @@ const NewsMetadata = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tg-theme-hint-color, #333);
 `;
 
 const NewsInfo = styled.div`
@@ -195,6 +177,7 @@ const NewsInfo = styled.div`
   gap: 12px;
   font-size: 12px;
   color: var(--tg-theme-hint-color, #999);
+  flex-wrap: wrap;
 `;
 
 const CategoryBadge = styled.span<{ $category: string }>`
@@ -204,25 +187,38 @@ const CategoryBadge = styled.span<{ $category: string }>`
   font-weight: 500;
   background: ${props => getCategoryColor(props.$category)};
   color: #ffffff;
+  white-space: nowrap;
 `;
 
-const ReadingTime = styled.span`
+const MetaItem = styled.span`
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
   
-  &::before {
+  &.reading-time::before {
     content: '📖';
+  }
+  
+  &.views::before {
+    content: '👁️';
+  }
+  
+  &.author::before {
+    content: '👤';
   }
 `;
 
-const ViewsCount = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 4px;
+const MediaContainer = styled.div`
+  margin-bottom: 12px;
+`;
+
+const StyledMediaViewer = styled(MediaViewer)`
+  border-radius: 0;
   
-  &::before {
-    content: '👁️';
+  &:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
   }
 `;
 
@@ -308,12 +304,12 @@ const App: React.FC = () => {
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
 
   const categories = [
-    { id: 'all', name: 'Все' },
-    { id: 'gifts', name: 'Подарки' },
-    { id: 'crypto', name: 'Крипто' },
-    { id: 'tech', name: 'Технологии' },
-    { id: 'community', name: 'Сообщество' },
-    { id: 'gaming', name: 'Игры' }
+    { id: 'all', name: 'Все', icon: '📰' },
+    { id: 'gifts', name: 'Подарки', icon: '🎁' },
+    { id: 'crypto', name: 'Крипто', icon: '₿' },
+    { id: 'tech', name: 'Технологии', icon: '💻' },
+    { id: 'community', name: 'Сообщество', icon: '👥' },
+    { id: 'nft', name: 'NFT', icon: '🖼️' }
   ];
 
   useEffect(() => {
@@ -382,10 +378,64 @@ const App: React.FC = () => {
     );
   }
 
+  const renderNewsCard = (item: NewsItem) => {
+    const hasMedia = item.image_url || item.video_url;
+
+    return (
+      <NewsCard
+        key={item.id}
+        $isNew={isNewNews(item.publish_date)}
+        onClick={() => handleNewsClick(item)}
+      >
+        {hasMedia && (
+          <MediaContainer>
+            <StyledMediaViewer
+              imageUrl={item.image_url}
+              videoUrl={item.video_url}
+              title={item.title}
+            />
+          </MediaContainer>
+        )}
+
+        <NewsCardContent>
+          <NewsHeader>
+            <NewsTextContent>
+              <NewsTitle>{item.title}</NewsTitle>
+              <NewsPreview>{item.content}</NewsPreview>
+            </NewsTextContent>
+          </NewsHeader>
+
+          <NewsMetadata>
+            <NewsInfo>
+              <CategoryBadge $category={item.category}>
+                {categories.find(cat => cat.id === item.category)?.icon} {' '}
+                {categories.find(cat => cat.id === item.category)?.name || item.category}
+              </CategoryBadge>
+
+              <span>{formatTimeAgo(item.publish_date)}</span>
+
+              {item.reading_time && (
+                <MetaItem className="reading-time">{item.reading_time} мин</MetaItem>
+              )}
+
+              {item.views_count !== undefined && (
+                <MetaItem className="views">{item.views_count}</MetaItem>
+              )}
+
+              {item.author && (
+                <MetaItem className="author">{item.author}</MetaItem>
+              )}
+            </NewsInfo>
+          </NewsMetadata>
+        </NewsCardContent>
+      </NewsCard>
+    );
+  };
+
   return (
     <AppContainer>
       <Header>
-        <Title>Новости от Telegram</Title>
+        <Title>🎁 Gift Propaganda News</Title>
 
         <SearchBar
           value={searchQuery}
@@ -400,7 +450,8 @@ const App: React.FC = () => {
               $active={selectedCategory === category.id}
               onClick={() => handleCategoryChange(category.id)}
             >
-              {category.name}
+              <span>{category.icon}</span>
+              <span>{category.name}</span>
             </CategoryTab>
           ))}
         </CategoryTabs>
@@ -409,51 +460,11 @@ const App: React.FC = () => {
       <NewsContainer>
         {filteredNews.length === 0 ? (
           <EmptyState>
-            <h3>Новостей не найдено</h3>
+            <h3>📭 Новостей не найдено</h3>
             <p>Попробуйте изменить категорию или поисковый запрос</p>
           </EmptyState>
         ) : (
-          filteredNews.map(item => (
-            <NewsCard
-              key={item.id}
-              $isNew={isNewNews(item.publish_date)}
-              onClick={() => handleNewsClick(item)}
-            >
-              <NewsHeader>
-                {item.image_url && (
-                  <NewsImage
-                    src={item.image_url}
-                    alt={item.title}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                )}
-                <NewsContent>
-                  <NewsTitle>{item.title}</NewsTitle>
-                  <NewsPreview>{item.content}</NewsPreview>
-                </NewsContent>
-              </NewsHeader>
-
-              <NewsMetadata>
-                <NewsInfo>
-                  <CategoryBadge $category={item.category}>
-                    {categories.find(cat => cat.id === item.category)?.name || item.category}
-                  </CategoryBadge>
-
-                  <span>{formatTimeAgo(item.publish_date)}</span>
-
-                  {item.reading_time && (
-                    <ReadingTime>{item.reading_time} мин</ReadingTime>
-                  )}
-
-                  {item.views_count !== undefined && (
-                    <ViewsCount>{item.views_count}</ViewsCount>
-                  )}
-                </NewsInfo>
-              </NewsMetadata>
-            </NewsCard>
-          ))
+          filteredNews.map(item => renderNewsCard(item))
         )}
       </NewsContainer>
 

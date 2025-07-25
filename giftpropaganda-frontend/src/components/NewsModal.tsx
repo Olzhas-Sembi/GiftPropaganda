@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import styled from 'styled-components';
+import MediaViewer from './MediaViewer';
 import TelegramWebApp from '../telegram/TelegramWebApp';
 
 interface NewsItem {
@@ -166,19 +167,9 @@ const ArticleContent = styled.div`
   margin: 0 auto;
 `;
 
-const ArticleImage = styled.img`
-  width: 100%;
-  height: auto;
-  border-radius: 12px;
-  margin: 20px 0;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-`;
-
-const VideoContainer = styled.div`
-  width: 100%;
+const FullMediaViewer = styled(MediaViewer)`
   margin: 20px 0;
   border-radius: 12px;
-  overflow: hidden;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 `;
 
@@ -337,6 +328,7 @@ const NewsModal: React.FC<NewsModalProps> = ({ news, isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const readingTime = news.reading_time || estimateReadingTime(news.content);
+  const hasMedia = news.image_url || news.video_url;
 
   return (
     <ModalOverlay $isOpen={isOpen} onClick={handleClose}>
@@ -383,27 +375,12 @@ const NewsModal: React.FC<NewsModalProps> = ({ news, isOpen, onClose }) => {
         </ModalHeader>
 
         <ArticleContent>
-          {news.image_url && (
-            <ArticleImage
-              src={news.image_url}
-              alt={news.title}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
+          {hasMedia && (
+            <FullMediaViewer
+              imageUrl={news.image_url}
+              videoUrl={news.video_url}
+              title={news.title}
             />
-          )}
-
-          {news.video_url && (
-            <VideoContainer>
-              <video
-                controls
-                style={{ width: '100%', height: 'auto' }}
-                poster={news.image_url}
-              >
-                <source src={news.video_url} type="video/mp4" />
-                Ваш браузер не поддерживает видео.
-              </video>
-            </VideoContainer>
           )}
 
           <ArticleText>
@@ -425,7 +402,6 @@ const NewsModal: React.FC<NewsModalProps> = ({ news, isOpen, onClose }) => {
         <RecommendationsSection>
           <RecommendationsTitle>Рекомендуем к прочтению</RecommendationsTitle>
 
-          {/* Здесь можно добавить рекомендованные статьи */}
           <RecommendationCard>
             <RecommendationTitle>
               Похожие новости появятся здесь
