@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from server.db import NewsItem, NewsSource
-from server.parsers.telegram_news_service import telegram_news_service
+from server.parsers import telegram_news_service
 
 async def fetch_telegram_channels(session: Session):
     try:
