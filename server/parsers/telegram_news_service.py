@@ -335,8 +335,9 @@ class TelegramNewsService:
                     description = entry.content[0].value if entry.content else ""
 
                 # Очищаем HTML теги
-                description = re.sub(r'<[^>]+>', '', description)
-                description = description[:200] + "..." if len(description) > 200 else description
+                clean_description = re.sub(r'<[^>]+>', '', description)
+                clean_description = clean_description[:200] + "..." if len(
+                    clean_description) > 200 else clean_description
 
                 # Получаем дату публикации
                 pub_date = datetime.now()
@@ -348,18 +349,64 @@ class TelegramNewsService:
                     pub_date = datetime.fromtimestamp(time.mktime(entry.updated_parsed))
 
                 # Автоматическая категоризация
-                auto_category = self.categorize_content(entry.title, description)
+                auto_category = self.categorize_content(entry.title, clean_description)
                 final_category = source.get('category', auto_category)
+
+                # Извлекаем медиа контент
+                media = None
+
+                # Проверяем enclosures (вложения)
+                if hasattr(entry, 'enclosures') and entry.enclosures:
+                    for enclosure in entry.enclosures:
+                        if hasattr(enclosure, 'type'):
+                            if enclosure.type.startswith('image/'):
+                                media = {
+                                    'type': 'photo',
+                                    'url': enclosure.href,
+                                    'thumbnail': enclosure.href
+                                }
+                                break
+                            elif enclosure.type.startswith('video/'):
+                                media = {
+                                    'type': 'video',
+                                    'url': enclosure.href,
+                                    'thumbnail': None
+                                }
+                                break
+
+                # Проверяем media:content (альтернативный способ)
+                if not media and hasattr(entry, 'media_content') and entry.media_content:
+                    for media_item in entry.media_content:
+                        if media_item.get('type', '').startswith('image/'):
+                            media = {
+                                'type': 'photo',
+                                'url': media_item.get('url', ''),
+                                'thumbnail': media_item.get('url', '')
+                            }
+                            break
+
+                # Формируем HTML контент
+                content_html = clean_description
+                if media:
+                    if media.get('type') == 'photo' and media.get('url'):
+                        content_html += f'<img src="{media["url"]}" style="max-width:100%"/>'
+                    elif media.get('type') == 'video' and media.get('url'):
+                        thumbnail = media.get('thumbnail', '')
+                        content_html += f'<video controls poster="{thumbnail}" style="max-width:100%">'
+                        content_html += f'<source src="{media["url"]}" type="video/mp4">'
+                        content_html += '</video>'
 
                 article = {
                     'id': hashlib.md5((entry.link + entry.title).encode()).hexdigest(),
                     'title': entry.title,
-                    'text': description,
+                    'text': clean_description,  # Plain text
+                    'content_html': content_html,  # HTML с медиа
                     'link': entry.link,
                     'date': pub_date.isoformat(),
                     'source': source['name'],
                     'category': final_category,
-                    'channel': 'rss_' + source['name'].lower().replace(' ', '_')
+                    'channel': 'rss_' + source['name'].lower().replace(' ', '_'),
+                    'media': [media] if media else None
                 }
 
                 articles.append(article)

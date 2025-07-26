@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import {MediaItem} from "../api/news";
 
 interface MediaViewerProps {
-  imageUrl?: string;
-  videoUrl?: string;
-  title: string;
+  mediaItem: MediaItem;
   className?: string;
 }
 
@@ -14,12 +13,13 @@ const MediaContainer = styled.div`
   border-radius: 8px;
   overflow: hidden;
   background: var(--tg-theme-secondary-bg-color, #1a1a1a);
+  margin-bottom: 16px;
 `;
 
 const MediaImage = styled.img<{ $hasVideo?: boolean }>`
   width: 100%;
   height: auto;
-  max-height: 200px;
+  max-height: 300px;
   object-fit: cover;
   cursor: ${props => props.$hasVideo ? 'pointer' : 'default'};
   transition: transform 0.2s ease;
@@ -92,43 +92,41 @@ const ErrorPlaceholder = styled.div`
 `;
 
 const MediaViewer: React.FC<MediaViewerProps> = ({
-  imageUrl,
-  videoUrl,
-  title,
+  mediaItem,
   className
 }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
 
   const handlePlayVideo = () => {
     setIsVideoPlaying(true);
   };
 
-  const handleImageError = () => {
-    setImageError(true);
+  const handleMediaError = () => {
+    setMediaError(true);
   };
 
-  if (imageError && !videoUrl) {
+  if (mediaError) {
     return (
       <MediaContainer className={className}>
         <ErrorPlaceholder>
-          📷 Изображение недоступно
+          {mediaItem.type === 'photo' ? '📷 Изображение недоступно' : '🎬 Видео недоступно'}
         </ErrorPlaceholder>
       </MediaContainer>
     );
   }
 
-  if (videoUrl && isVideoPlaying) {
+  if (mediaItem.type === 'video' && isVideoPlaying) {
     return (
       <MediaContainer className={className}>
         <VideoElement
           controls
           autoPlay
-          poster={imageUrl}
-          onError={() => setIsVideoPlaying(false)}
+          poster={mediaItem.thumbnail}
+          onError={handleMediaError}
         >
-          <source src={videoUrl} type="video/mp4" />
-          <source src={videoUrl} type="video/webm" />
+          <source src={mediaItem.url} type="video/mp4" />
+          <source src={mediaItem.url} type="video/webm" />
           Ваш браузер не поддерживает воспроизведение видео.
         </VideoElement>
         <MediaType>📹 ВИДЕО</MediaType>
@@ -136,25 +134,39 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     );
   }
 
-  if (imageUrl) {
+  if (mediaItem.type === 'photo') {
     return (
       <MediaContainer className={className}>
         <MediaImage
-          src={imageUrl}
-          alt={title}
-          $hasVideo={!!videoUrl}
-          onError={handleImageError}
-          onClick={videoUrl ? handlePlayVideo : undefined}
+          src={mediaItem.url}
+          alt="Media content"
+          onError={handleMediaError}
         />
-        {videoUrl && (
+        <MediaType>📷 ФОТО</MediaType>
+      </MediaContainer>
+    );
+  }
+
+  if (mediaItem.type === 'video') {
+    return (
+      <MediaContainer className={className}>
+        {mediaItem.thumbnail ? (
           <>
+            <MediaImage
+              src={mediaItem.thumbnail}
+              alt="Video thumbnail"
+              $hasVideo={true}
+              onError={handleMediaError}
+              onClick={handlePlayVideo}
+            />
             <PlayButton onClick={handlePlayVideo} />
-            <MediaType>📹 ВИДЕО</MediaType>
           </>
+        ) : (
+          <div onClick={handlePlayVideo} style={{ cursor: 'pointer', padding: '20px', textAlign: 'center' }}>
+            Нажмите для воспроизведения видео
+          </div>
         )}
-        {!videoUrl && (
-          <MediaType>📷 ФОТО</MediaType>
-        )}
+        <MediaType>📹 ВИДЕО</MediaType>
       </MediaContainer>
     );
   }

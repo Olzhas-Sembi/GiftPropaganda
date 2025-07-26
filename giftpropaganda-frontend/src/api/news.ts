@@ -6,29 +6,31 @@ const API_URL = process.env.NODE_ENV === 'production'
   : 'http://localhost:8000/api/news/';
 
 export interface MediaItem {
+  id: number;  // или string, в зависимости от вашей системы
   type: 'photo' | 'video';
   url: string;
   thumbnail?: string;
   width?: number;
   height?: number;
-  duration?: number; // Для видео
-  size?: number; // Размер файла
+  duration?: number;
+  size?: number;
 }
 
 export interface NewsItem {
   id: number;
   title: string;
   content: string;
+  content_html: string; // Добавлено HTML-содержимое
   link: string;
   publish_date: string;
   category: string;
-  image_url?: string; // Основное изображение
-  video_url?: string; // Основное видео
   reading_time?: number;
   views_count?: number;
   author?: string;
   subtitle?: string;
-  media?: MediaItem; // Дополнительное медиа
+  media?: MediaItem[]; // Медиа как массив
+  source_name?: string; // Название источника
+  source_url?: string;  // URL источника
 }
 
 export interface NewsResponse {
@@ -50,10 +52,9 @@ export const fetchNews = async (category?: string): Promise<NewsResponse> => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      timeout: 15000 // Увеличиваем таймаут до 15 секунд
+      timeout: 15000
     });
 
-    console.log('API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('Ошибка при загрузке новостей:', error);

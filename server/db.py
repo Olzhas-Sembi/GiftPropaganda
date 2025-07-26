@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
 import os
+from sqlalchemy import JSON  # Добавьте этот импорт
 
 # Получаем URL базы данных из переменных окружения
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/giftpropaganda")
@@ -28,26 +29,27 @@ class NewsSource(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class NewsItem(Base):
-    """Модель новости"""
     __tablename__ = "news_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(String(255), nullable=False)  # ID поста в источнике
+    source_id = Column(String(255), nullable=False)
     title = Column(String(1000), nullable=False)
     content = Column(Text, nullable=False)
+    content_html = Column(Text, nullable=True)  # HTML контент
     link = Column(String(1000), nullable=False)
     publish_date = Column(DateTime, nullable=False)
     category = Column(String(100), nullable=False)
+    media = Column(JSON, nullable=True)  # Медиа вложения
 
-    # Новые поля для медиа
+    # Остальные поля остаются без изменений
     image_url = Column(String(1000), nullable=True)
     video_url = Column(String(1000), nullable=True)
-    reading_time = Column(Integer, nullable=True)  # в минутах
+    reading_time = Column(Integer, nullable=True)
     views_count = Column(Integer, default=0)
     author = Column(String(200), nullable=True)
     subtitle = Column(String(500), nullable=True)
-
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

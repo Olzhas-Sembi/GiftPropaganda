@@ -1,23 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
+from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
 import logging
 
-from ..db import get_db, NewsItem
-from ..models import NewsResponse, NewsItemResponse
+from server.db import get_db, NewsItem, NewsSource
+from server.models import NewsResponse, NewsItemResponse, MediaItem
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.get("/news/", response_model=NewsResponse)
 async def get_news(
-    category: Optional[str] = Query(None, description="Фильтр по категории"),
-    limit: int = Query(50, description="Количество новостей", le=100),
-    offset: int = Query(0, description="Смещение для пагинации"),
-    db: Session = Depends(get_db)
+        category: Optional[str] = Query(None, description="Фильтр по категории"),
+        limit: int = Query(50, description="Количество новостей", le=100),
+        offset: int = Query(0, description="Смещение для пагинации"),
+        db: Session = Depends(get_db)
 ):
     """Получить список новостей с фильтрацией"""
     try:
@@ -39,23 +40,44 @@ async def get_news(
 
         logger.info(f"Найдено {len(news_items)} новостей из {total} общих")
 
+        # Соберем source_id для всех новостей
+        source_ids = [item.source_id for item in news_items if item.source_id is not None]
+        sources = {}
+        if source_ids:
+            sources_list = db.query(NewsSource).filter(NewsSource.id.in_(source_ids)).all()
+            sources = {source.id: source for source in sources_list}
+
         # Преобразование в response модель
         news_data = []
         for item in news_items:
             try:
+                # Получаем медиа из JSON поля
+                media_list = []
+                if item.media:
+                    try:
+                        media_list = [MediaItem(**media) for media in item.media]
+                    except Exception as e:
+                        logger.warning(f"Error parsing media for {item.id}: {e}")
+
+                # Получаем источник
+                source = sources.get(item.source_id)
+                source_name = source.name if source else None
+                source_url = source.url if source else None
+
                 news_data.append(NewsItemResponse(
                     id=item.id,
                     title=item.title or "",
-                    content=item.content or "",
+                    content=item.content or "",  # Plain text
+                    content_html=item.content_html or "",  # HTML контент
                     link=item.link or "",
                     publish_date=item.publish_date.isoformat() if item.publish_date else datetime.now().isoformat(),
                     category=item.category or "general",
-                    image_url=item.image_url,
-                    video_url=item.video_url,
+                    media=media_list,
                     reading_time=item.reading_time,
                     views_count=item.views_count or 0,
                     author=item.author,
-                    subtitle=item.subtitle
+                    source_name=source_name,
+                    source_url=source_url
                 ))
             except Exception as e:
                 logger.warning(f"Ошибка при обработке новости {item.id}: {e}")
@@ -72,10 +94,11 @@ async def get_news(
         logger.error(f"Ошибка при получении новостей: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка при получении новостей: {str(e)}")
 
+
 @router.get("/news/{news_id}", response_model=NewsItemResponse)
 async def get_news_item(
-    news_id: int,
-    db: Session = Depends(get_db)
+        news_id: int,
+        db: Session = Depends(get_db)
 ):
     """Получить конкретную новость по ID"""
     try:
@@ -83,6 +106,17 @@ async def get_news_item(
 
         if not news_item:
             raise HTTPException(status_code=404, detail="Новость не найдена")
+
+        # Получаем источник
+        source = db.query(NewsSource).get(news_item.source_id) if news_item.source_id else None
+
+        # Получаем медиа
+        media_list = []
+        if news_item.media:
+            try:
+                media_list = [MediaItem(**media) for media in news_item.media]
+            except Exception as e:
+                logger.warning(f"Error parsing media for {news_item.id}: {e}")
 
         # Увеличиваем счетчик просмотров
         if news_item.views_count is None:
@@ -94,15 +128,16 @@ async def get_news_item(
             id=news_item.id,
             title=news_item.title or "",
             content=news_item.content or "",
+            content_html=news_item.content_html or "",
             link=news_item.link or "",
             publish_date=news_item.publish_date.isoformat() if news_item.publish_date else datetime.now().isoformat(),
             category=news_item.category or "general",
-            image_url=news_item.image_url,
-            video_url=news_item.video_url,
+            media=media_list,
             reading_time=news_item.reading_time,
             views_count=news_item.views_count,
             author=news_item.author,
-            subtitle=news_item.subtitle
+            source_name=source.name if source else None,
+            source_url=source.url if source else None
         )
 
     except HTTPException:
@@ -110,6 +145,7 @@ async def get_news_item(
     except Exception as e:
         logger.error(f"Ошибка при получении новости {news_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка при получении новости: {str(e)}")
+
 
 @router.get("/categories/")
 async def get_categories(db: Session = Depends(get_db)):
@@ -120,6 +156,7 @@ async def get_categories(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Ошибка при получении категорий: {e}")
         raise HTTPException(status_code=500, detail="Ошибка при получении категорий")
+
 
 @router.get("/stats/")
 async def get_stats(db: Session = Depends(get_db)):

@@ -1,23 +1,33 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
+
+# Добавляем модель для медиа
+class MediaItem(BaseModel):
+    type: str
+    url: Optional[str] = None
+    thumbnail: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
 
 class NewsItemResponse(BaseModel):
     id: int
     title: str
     content: str
+    content_html: str
     link: str
     publish_date: str
     category: str
-    image_url: Optional[str] = None
-    video_url: Optional[str] = None
+    media: Optional[List[MediaItem]] = None
     reading_time: Optional[int] = None
     views_count: Optional[int] = 0
     author: Optional[str] = None
-    subtitle: Optional[str] = None
+    source_name: Optional[str] = None  # Добавьте это
+    source_url: Optional[str] = None   # И это
 
     class Config:
         from_attributes = True
+
 
 class NewsResponse(BaseModel):
     data: List[NewsItemResponse]
