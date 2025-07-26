@@ -70,9 +70,8 @@ async def fetch_telegram_channels(session: Session):
                         'width': media.get('width'),
                         'height': media.get('height')
                     })
-
-                # Формируем HTML контент
-                content_html = item.get('text', '')
+                message_text = item.get('text', '') or item.get('caption', '') or item['title']
+                content_html = message_text
                 if media:
                     if media.get('type') == 'photo' and media.get('url'):
                         content_html += f'<img src="{media["url"]}" style="max-width:100%"/>'
@@ -81,7 +80,6 @@ async def fetch_telegram_channels(session: Session):
                         content_html += f'<video controls poster="{thumbnail}" style="max-width:100%">'
                         content_html += f'<source src="{media["url"]}" type="video/mp4">'
                         content_html += '</video>'
-
                 # Создаем новость
                 db_item = NewsItem(
                     source_id=source_id,
