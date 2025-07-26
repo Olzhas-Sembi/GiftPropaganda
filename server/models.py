@@ -10,6 +10,17 @@ class MediaItem(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
 
+class NewsSourceResponse(BaseModel):
+    id: int
+    name: str
+    url: str
+    source_type: str
+    category: Optional[str] = None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
 class NewsItemResponse(BaseModel):
     id: int
     title: str
@@ -24,7 +35,8 @@ class NewsItemResponse(BaseModel):
     author: Optional[str] = None
     source_name: Optional[str] = None  # Добавьте это
     source_url: Optional[str] = None   # И это
-
+    source: NewsSourceResponse  # Полная информация об источнике
+    
     class Config:
         from_attributes = True
 

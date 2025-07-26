@@ -1,0 +1,26 @@
+# services/news_service.py
+from sqlalchemy.orm import Session
+from server.db import NewsSource  # Импортируйте вашу модель NewsSource
+
+
+def get_or_create_source(session: Session, source_name: str) -> NewsSource:
+    """
+    Находит или создаёт источник новостей.
+
+    Args:
+        session: SQLAlchemy сессия
+        source_name: Название источника
+
+    Returns:
+        Объект NewsSource (существующий или новый)
+    """
+    # Пытаемся найти существующий источник
+    source = session.query(NewsSource).filter_by(name=source_name).first()
+
+    # Если не нашли - создаём новый
+    if not source:
+        source = NewsSource(name=source_name)
+        session.add(source)
+        session.flush()  # Получаем ID без коммита всей транзакции
+
+    return source

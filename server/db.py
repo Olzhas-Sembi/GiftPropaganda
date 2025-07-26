@@ -1,8 +1,8 @@
 # server/db.py
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, relationship
 from datetime import datetime
 import os
 
@@ -21,9 +21,9 @@ Base = declarative_base()
 
 
 class NewsSource(Base):
-    __tablename__ = "news_sources"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
+    __tablename__ = 'news_sources'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True)
     url = Column(String(1000), nullable=False)
     source_type = Column(String(50), nullable=False)
     category = Column(String(100))
@@ -32,9 +32,9 @@ class NewsSource(Base):
 
 
 class NewsItem(Base):
-    __tablename__ = "news_items"
-    id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(String(255), nullable=True)
+    __tablename__ = 'news_items'
+    id = Column(Integer, primary_key=True)
+    source_id = Column(Integer, ForeignKey('news_sources.id'), nullable=False)  # Жёсткая связь
     title = Column(String(1000), nullable=False)
     content = Column(Text, nullable=False)
     content_html = Column(Text, nullable=True)
@@ -50,7 +50,7 @@ class NewsItem(Base):
     subtitle = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    source = relationship("NewsSource")  # Для удобного доступа
 
 def get_db() -> Session:
     db = SessionLocal()

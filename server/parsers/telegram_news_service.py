@@ -49,7 +49,7 @@ class TelegramNewsService:
             {'url': 'https://forklog.com/feed/', 'name': 'ForkLog', 'category': 'crypto'},
             {'url': 'https://www.coindesk.com/arc/outboundfeeds/rss/', 'name': 'CoinDesk', 'category': 'crypto'},
             {'url': 'https://cointelegraph.com/rss', 'name': 'Cointelegraph', 'category': 'crypto'},
-            {'url': 'https://habr.com/ru/rss/hub/nft/all/', 'name': 'Habr NFT', 'category': 'nft'}
+            {'url': 'https://habr.com/ru/rss/articles/', 'name': 'Habr NFT', 'category': 'nft'}
         ]
 
         self.cache = {}
