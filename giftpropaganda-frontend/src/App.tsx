@@ -460,17 +460,89 @@ const App: React.FC = () => {
               />
             )}
             {previewMedia.type === 'video' && previewMedia.thumbnail && (
-              <img
-                src={previewMedia.thumbnail}
-                alt="Video preview"
-                style={{ width: '100%', height: '150px', objectFit: 'cover', opacity: 0.8 }}
-              />
+              <div style={{ position: 'relative' }}>
+                <img
+                  src={previewMedia.thumbnail}
+                  alt="Video preview"
+                  style={{ width: '100%', height: '150px', objectFit: 'cover', opacity: 0.8 }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'rgba(0,0,0,0.7)',
+                  borderRadius: '50%',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '16px'
+                }}>
+                  ▶️
+                </div>
+              </div>
             )}
           </MediaContainer>
         )}
 
         <NewsCardContent>
-          {/* ... (остальной код карточки без изменений) */}
+          <NewsHeader>
+            <NewsImagePreview>
+              {previewMedia && previewMedia.type === 'photo' ? (
+                <img
+                  src={previewMedia.url}
+                  alt={item.title}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'var(--tg-theme-hint-color, #333)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px'
+                }}>
+                  {item.category === 'gifts' ? '🎁' : 
+                   item.category === 'crypto' ? '₿' : 
+                   item.category === 'tech' ? '💻' : 
+                   item.category === 'nft' ? '🖼️' : '📰'}
+                </div>
+              )}
+            </NewsImagePreview>
+            
+            <NewsTextContent>
+              <NewsTitle>{item.title}</NewsTitle>
+              <NewsPreview>{item.content}</NewsPreview>
+            </NewsTextContent>
+          </NewsHeader>
+
+          <NewsMetadata>
+            <NewsInfo>
+              <CategoryBadge $category={item.category}>
+                {item.category.toUpperCase()}
+              </CategoryBadge>
+              <MetaItem>🕒 {formatTimeAgo(item.publish_date)}</MetaItem>
+              {item.reading_time && (
+                <MetaItem>📖 {item.reading_time} мин</MetaItem>
+              )}
+              {item.views_count !== undefined && (
+                <MetaItem>👁️ {item.views_count}</MetaItem>
+              )}
+            </NewsInfo>
+            
+            <InteractionBar>
+              <InteractionButton>🔥</InteractionButton>
+              <InteractionButton>💬</InteractionButton>
+              <InteractionButton>🔖</InteractionButton>
+            </InteractionBar>
+          </NewsMetadata>
         </NewsCardContent>
       </NewsCard>
     );

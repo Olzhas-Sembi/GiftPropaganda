@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from server.db import get_db, NewsItem, NewsSource
+from server.db import get_db, NewsItem, NewsSource, recreate_engine, recreate_models
 from server.models import NewsResponse, NewsItemResponse, MediaItem
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,10 @@ async def get_news(
     """Получить список новостей с фильтрацией"""
     try:
         logger.info(f"Запрос новостей: category={category}, limit={limit}, offset={offset}")
+
+        # Принудительно обновляем метаданные и модели
+        recreate_engine()
+        NewsItem, NewsSource = recreate_models()
 
         # Базовый запрос
         query = db.query(NewsItem)

@@ -1,18 +1,22 @@
 # server/db.py
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from datetime import datetime
 import os
 
 # Получаем URL базы данных из переменных окружения
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://news_db_uqla_user:CsR935mNvZq5dXoFZfiQZMu9Z1lMiC4O@dpg-d22h9l7gi27c73evqun0-a.oregon-postgres.render.com/news_db_uqla")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://news_db_bnnu_user:QkbkVviv0rOOKW2LIXh2tkelyDICRLXv@dpg-d22i993e5dus739mr8n0-a.oregon-postgres.render.com/news_db_bnnu")
 
 # Создаем движок базы данных с SSL
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"sslmode": "require"}  # ← ключевая строка
+    connect_args={"sslmode": "require"},  # ← ключевая строка
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    pool_reset_on_return='commit'
 )
 
 # Сессии
@@ -55,6 +59,8 @@ class NewsItem(Base):
 def get_db() -> Session:
     db = SessionLocal()
     try:
+        # Принудительно обновляем метаданные при каждом запросе
+        db.execute(text("SELECT 1"))
         yield db
     finally:
         db.close()
@@ -66,3 +72,37 @@ def create_tables():
 
 def get_db_session():
     return SessionLocal()
+
+def refresh_metadata():
+    """Принудительно обновляет метаданные SQLAlchemy"""
+    Base.metadata.reflect(bind=engine)
+    print("Метаданные SQLAlchemy обновлены")
+
+# Принудительно обновляем метаданные при импорте
+try:
+    refresh_metadata()
+except Exception as e:
+    print(f"Ошибка при обновлении метаданных: {e}")
+
+# Пересоздаем движок с обновленными метаданными
+def recreate_engine():
+    """Пересоздает движок базы данных с обновленными метаданными"""
+    global engine, SessionLocal
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"sslmode": "require"},
+        echo=False,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        pool_reset_on_return='commit'
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    refresh_metadata()
+    return engine
+
+# Пересоздаем модель с обновленными метаданными
+def recreate_models():
+    """Пересоздает модели с обновленными метаданными"""
+    global NewsItem, NewsSource
+    Base.metadata.reflect(bind=engine)
+    return NewsItem, NewsSource

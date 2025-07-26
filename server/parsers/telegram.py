@@ -62,24 +62,31 @@ async def fetch_telegram_channels(session: Session):
                 # Извлекаем медиа данные
                 media = item.get('media')
                 media_list = []
-                if media:
-                    media_list.append({
-                        'type': media.get('type'),
-                        'url': media.get('url'),
-                        'thumbnail': media.get('thumbnail'),
-                        'width': media.get('width'),
-                        'height': media.get('height')
-                    })
                 message_text = item.get('text', '') or item.get('caption', '') or item['title']
                 content_html = message_text
+                
                 if media:
-                    if media.get('type') == 'photo' and media.get('url'):
-                        content_html += f'<img src="{media["url"]}" style="max-width:100%"/>'
-                    elif media.get('type') == 'video' and media.get('url'):
-                        thumbnail = media.get('thumbnail', '')
-                        content_html += f'<video controls poster="{thumbnail}" style="max-width:100%">'
-                        content_html += f'<source src="{media["url"]}" type="video/mp4">'
-                        content_html += '</video>'
+                    # Обрабатываем медиа как массив или одиночный объект
+                    media_items = media if isinstance(media, list) else [media]
+                    
+                    for media_item in media_items:
+                        if media_item and isinstance(media_item, dict):
+                            media_list.append({
+                                'type': media_item.get('type'),
+                                'url': media_item.get('url'),
+                                'thumbnail': media_item.get('thumbnail'),
+                                'width': media_item.get('width'),
+                                'height': media_item.get('height')
+                            })
+                            
+                            # Добавляем медиа в HTML контент
+                            if media_item.get('type') == 'photo' and media_item.get('url'):
+                                content_html += f'<br><img src="{media_item["url"]}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;"/>'
+                            elif media_item.get('type') == 'video' and media_item.get('url'):
+                                thumbnail = media_item.get('thumbnail', '')
+                                content_html += f'<br><video controls poster="{thumbnail}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;">'
+                                content_html += f'<source src="{media_item["url"]}" type="video/mp4">'
+                                content_html += '</video>'
                 # Создаем новость
                 db_item = NewsItem(
                     source_id=source_id,

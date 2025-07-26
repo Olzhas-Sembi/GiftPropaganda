@@ -368,12 +368,21 @@ const NewsModal: React.FC<NewsModalProps> = ({news, isOpen, onClose}) => {
                         </ArticleMeta>
                     </ArticleHeader>
 
-                    {news.media?.map((mediaItem) => (
-                        <MediaViewer key={mediaItem.id} mediaItem={mediaItem}/>
-                    ))}
+                    {news.media && news.media.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            {news.media.map((mediaItem, index) => (
+                                <MediaViewer key={index} mediaItem={mediaItem}/>
+                            ))}
+                        </div>
+                    )}
 
                     {news.content_html && (
                         <ArticleContent dangerouslySetInnerHTML={createMarkup(news.content_html)}/>
+                    )}
+                    {!news.content_html && news.content && (
+                        <ArticleContent>
+                            <p>{news.content}</p>
+                        </ArticleContent>
                     )}
                     {news.source_name && (
                         <SourceInfo>

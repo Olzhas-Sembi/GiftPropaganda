@@ -46,7 +46,6 @@ class TelegramNewsService:
         # RSS источники согласно ТЗ - до 5 проверенных лент
         self.rss_sources = [
             {'url': 'https://vc.ru/rss', 'name': 'VC.ru', 'category': 'tech'},
-            {'url': 'https://forklog.com/feed/', 'name': 'ForkLog', 'category': 'crypto'},
             {'url': 'https://www.coindesk.com/arc/outboundfeeds/rss/', 'name': 'CoinDesk', 'category': 'crypto'},
             {'url': 'https://cointelegraph.com/rss', 'name': 'Cointelegraph', 'category': 'crypto'},
             {'url': 'https://habr.com/ru/rss/articles/', 'name': 'Habr NFT', 'category': 'nft'}
@@ -353,46 +352,43 @@ class TelegramNewsService:
                 final_category = source.get('category', auto_category)
 
                 # Извлекаем медиа контент
-                media = None
+                media_list = []
 
                 # Проверяем enclosures (вложения)
                 if hasattr(entry, 'enclosures') and entry.enclosures:
                     for enclosure in entry.enclosures:
                         if hasattr(enclosure, 'type'):
                             if enclosure.type.startswith('image/'):
-                                media = {
+                                media_list.append({
                                     'type': 'photo',
                                     'url': enclosure.href,
                                     'thumbnail': enclosure.href
-                                }
-                                break
+                                })
                             elif enclosure.type.startswith('video/'):
-                                media = {
+                                media_list.append({
                                     'type': 'video',
                                     'url': enclosure.href,
                                     'thumbnail': None
-                                }
-                                break
+                                })
 
                 # Проверяем media:content (альтернативный способ)
-                if not media and hasattr(entry, 'media_content') and entry.media_content:
+                if hasattr(entry, 'media_content') and entry.media_content:
                     for media_item in entry.media_content:
                         if media_item.get('type', '').startswith('image/'):
-                            media = {
+                            media_list.append({
                                 'type': 'photo',
                                 'url': media_item.get('url', ''),
                                 'thumbnail': media_item.get('url', '')
-                            }
-                            break
+                            })
 
                 # Формируем HTML контент
                 content_html = clean_description
-                if media:
+                for media in media_list:
                     if media.get('type') == 'photo' and media.get('url'):
-                        content_html += f'<img src="{media["url"]}" style="max-width:100%"/>'
+                        content_html += f'<br><img src="{media["url"]}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;"/>'
                     elif media.get('type') == 'video' and media.get('url'):
                         thumbnail = media.get('thumbnail', '')
-                        content_html += f'<video controls poster="{thumbnail}" style="max-width:100%">'
+                        content_html += f'<br><video controls poster="{thumbnail}" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;">'
                         content_html += f'<source src="{media["url"]}" type="video/mp4">'
                         content_html += '</video>'
 
@@ -406,7 +402,7 @@ class TelegramNewsService:
                     'source': source['name'],
                     'category': final_category,
                     'channel': 'rss_' + source['name'].lower().replace(' ', '_'),
-                    'media': [media] if media else None
+                    'media': media_list
                 }
 
                 articles.append(article)

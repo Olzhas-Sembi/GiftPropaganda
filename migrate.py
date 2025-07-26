@@ -33,7 +33,7 @@ async def apply_migration():
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name = 'news_items' 
-                AND column_name IN ('image_url', 'video_url', 'reading_time', 'views_count', 'author', 'subtitle')
+                AND column_name IN ('image_url', 'video_url', 'reading_time', 'views_count', 'author', 'subtitle', 'content_html')
             """))
 
             existing_columns = [row[0] for row in result.fetchall()]
@@ -46,7 +46,8 @@ async def apply_migration():
                 ('reading_time', 'INTEGER'),
                 ('views_count', 'INTEGER'),
                 ('author', 'VARCHAR(200)'),
-                ('subtitle', 'VARCHAR(500)')
+                ('subtitle', 'VARCHAR(500)'),
+                ('content_html', 'TEXT')
             ]
 
             for field_name, field_type in fields_to_add:
