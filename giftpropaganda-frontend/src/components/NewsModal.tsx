@@ -375,7 +375,6 @@ const NewsModal: React.FC<NewsModalProps> = ({news, isOpen, onClose}) => {
                     {news.content_html && (
                         <ArticleContent dangerouslySetInnerHTML={createMarkup(news.content_html)}/>
                     )}
-
                     {news.source_name && (
                         <SourceInfo>
                             Источник:{" "}
