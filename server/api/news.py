@@ -77,7 +77,8 @@ async def get_news(
                     views_count=item.views_count or 0,
                     author=item.author,
                     source_name=source_name,
-                    source_url=source_url
+                    source_url=source_url,
+                    source=source  # <-- добавлено, чтобы поле source было заполнено
                 ))
             except Exception as e:
                 logger.warning(f"Ошибка при обработке новости {item.id}: {e}")
