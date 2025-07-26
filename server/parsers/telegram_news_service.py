@@ -798,7 +798,11 @@ class TelegramNewsService:
                 for post in posts:
                     # Получаем или создаём источник
                     from server.services.news_service import get_or_create_source
-                    source = get_or_create_source(db, post.get('source', 'unknown'))
+                    # Определяем тип источника и url
+                    source_type = 'telegram' if post.get('channel') and not post.get('link', '').startswith('http') else 'rss'
+                    source_url = post.get('link') or ''
+                    category = post.get('category') or 'general'
+                    source = get_or_create_source(db, post.get('source', 'unknown'), url=source_url, source_type=source_type, category=category)
                     # Проверяем, существует ли уже такая новость
                     existing = db.query(NewsItem).filter(
                         NewsItem.title == post['title']
@@ -824,12 +828,12 @@ class TelegramNewsService:
                     reading_time = max(1, word_count // 200)
 
                     news_item = NewsItem(
-                        source_id=source.id,  # <-- добавлено
+                        source_id=source.id,
                         title=post['title'],
                         content=post['text'],
                         link=post['link'],
                         publish_date=datetime.fromisoformat(post['date'].replace('Z', '+00:00')),
-                        category=post['category'],
+                        category=category,
                         image_url=image_url,
                         video_url=video_url,
                         reading_time=reading_time,
