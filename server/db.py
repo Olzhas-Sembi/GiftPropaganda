@@ -6,7 +6,7 @@ import os
 from sqlalchemy import JSON  # Добавьте этот импорт
 
 # Получаем URL базы данных из переменных окружения
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/giftpropaganda")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://news_db_uqla_user:CsR935mNvZq5dXoFZfiQZMu9Z1lMiC4O@dpg-d22h9l7gi27c73evqun0-a.oregon-postgres.render.com/news_db_uqla")
 
 # Создаем движок базы данных
 engine = create_engine(DATABASE_URL)

@@ -5,7 +5,7 @@ load_dotenv()
 
 # Настройки базы данных - для Render
 # Получаем DATABASE_URL из переменных окружения или используем дефолтную для локальной разработки
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/giftpropaganda")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://news_db_uqla_user:CsR935mNvZq5dXoFZfiQZMu9Z1lMiC4O@dpg-d22h9l7gi27c73evqun0-a.oregon-postgres.render.com/news_db_uqla")
 
 # Настройки Telegram Bot
 TOKEN = os.getenv("TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "8429342375:AAFl55U3d2jiq3bm4UNTyDrbB0rztFTio2I")
