@@ -34,7 +34,7 @@ class NewsSource(Base):
 class NewsItem(Base):
     __tablename__ = "news_items"
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(String(255), nullable=False)
+    source_id = Column(String(255), nullable=True)
     title = Column(String(1000), nullable=False)
     content = Column(Text, nullable=False)
     content_html = Column(Text, nullable=True)
