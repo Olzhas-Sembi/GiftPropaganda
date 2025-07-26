@@ -796,6 +796,9 @@ class TelegramNewsService:
             try:
                 news_items = []
                 for post in posts:
+                    # Получаем или создаём источник
+                    from server.services.news_service import get_or_create_source
+                    source = get_or_create_source(db, post.get('source', 'unknown'))
                     # Проверяем, существует ли уже такая новость
                     existing = db.query(NewsItem).filter(
                         NewsItem.title == post['title']
@@ -821,6 +824,7 @@ class TelegramNewsService:
                     reading_time = max(1, word_count // 200)
 
                     news_item = NewsItem(
+                        source_id=source.id,  # <-- добавлено
                         title=post['title'],
                         content=post['text'],
                         link=post['link'],
