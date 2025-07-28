@@ -4,6 +4,7 @@ from sqlalchemy import desc, and_
 from typing import List, Optional
 from datetime import datetime
 import logging
+import json
 
 from ..db import get_db, NewsItem
 from ..models import NewsResponse, NewsItemResponse
@@ -25,17 +26,28 @@ async def get_news(
 
         # Базовый запрос
         query = db.query(NewsItem)
+        
+        # Добавляем логирование для отладки
+        logger.info(f"Выполняем запрос к базе данных...")
+        
+        # Проверяем общее количество записей
+        total_count = db.query(NewsItem).count()
+        logger.info(f"Общее количество новостей в базе: {total_count}")
 
         # Фильтр по категории
         if category and category != "all":
             query = query.filter(NewsItem.category == category)
+            logger.info(f"Применен фильтр по категории: {category}")
 
         # Сортировка по дате публикации
         query = query.order_by(desc(NewsItem.publish_date))
 
         # Пагинация
         total = query.count()
+        logger.info(f"Количество новостей после фильтрации: {total}")
+        
         news_items = query.offset(offset).limit(limit).all()
+        logger.info(f"Получено новостей после пагинации: {len(news_items)}")
 
         logger.info(f"Найдено {len(news_items)} новостей из {total} общих")
 
@@ -43,6 +55,27 @@ async def get_news(
         news_data = []
         for item in news_items:
             try:
+                # Обрабатываем медиа данные
+                media = None
+                media_urls = None
+                if hasattr(item, 'media') and item.media:
+                    try:
+                        if isinstance(item.media, str):
+                            media = json.loads(item.media)
+                        else:
+                            media = item.media
+                    except:
+                        media = None
+                
+                if hasattr(item, 'media_urls') and item.media_urls:
+                    try:
+                        if isinstance(item.media_urls, str):
+                            media_urls = json.loads(item.media_urls)
+                        else:
+                            media_urls = item.media_urls
+                    except:
+                        media_urls = None
+                
                 news_data.append(NewsItemResponse(
                     id=item.id,
                     title=item.title or "",
@@ -55,7 +88,14 @@ async def get_news(
                     reading_time=item.reading_time,
                     views_count=item.views_count or 0,
                     author=item.author,
-                    subtitle=item.subtitle
+                    subtitle=item.subtitle,
+                    # Новые поля медиа
+                    media=media,
+                    media_urls=media_urls,
+                    has_media=getattr(item, 'has_media', False),
+                    forwards=getattr(item, 'forwards', 0),
+                    replies=getattr(item, 'replies', 0),
+                    channel=getattr(item, 'channel', None)
                 ))
             except Exception as e:
                 logger.warning(f"Ошибка при обработке новости {item.id}: {e}")

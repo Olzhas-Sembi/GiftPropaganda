@@ -8,6 +8,9 @@ import logging
 import re
 import hashlib
 
+# Импортируем Telegram API сервис
+from server.services.telegram_api_service import telegram_api_service
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,7 +118,7 @@ class TelegramNewsService:
 
     async def fetch_telegram_channel(self, channel_username: str) -> List[Dict[str, Any]]:
         """
-        Получение новостей из Telegram канала через веб-скрапинг
+        Получение новостей из Telegram канала через Telegram API
         Согласно ТЗ - интеграция с Telegram каналами для получения актуальных новостей
         """
         try:
@@ -124,9 +127,85 @@ class TelegramNewsService:
                 logger.warning(f"Channel {channel_username} not found in configured channels")
                 return []
 
-            # Используем публичный API Telegram для получения постов
-            url = f"https://t.me/s/{channel_username}"
+            # Сначала пробуем через Telegram API
+            posts = await self._fetch_via_telegram_api(channel_username, channel_data)
+            if posts:
+                logger.info(f"Got {len(posts)} posts from {channel_username} via Telegram API")
+                return posts
+            
+            # Если API не сработал, используем HTML парсинг как fallback
+            logger.info(f"Falling back to HTML parsing for {channel_username}")
+            return await self._fetch_via_html_parsing(channel_username, channel_data)
+            
+        except Exception as e:
+            logger.error(f"Error in fetch_telegram_channel for {channel_username}: {e}")
+            return []
 
+    async def _fetch_via_telegram_api(self, channel_username: str, channel_data: Dict) -> List[Dict[str, Any]]:
+        """Получение постов через Telegram API с полным контентом"""
+        try:
+            # Получаем посты через Telegram API
+            posts_data = await telegram_api_service.fetch_posts(channel_username, limit=10)
+            
+            if not posts_data:
+                return []
+            
+            # Преобразуем данные в формат, совместимый с нашим API
+            posts = []
+            for post_data in posts_data:
+                # Обрабатываем медиафайлы
+                media = None
+                if post_data.get("has_media") and post_data.get("media"):
+                    media_info = post_data["media"][0]  # Берем первое медиа
+                    media = {
+                        'type': media_info.get('type', 'unknown'),
+                        'url': None,  # URL будет добавлен позже
+                        'thumbnail': None,
+                        'width': None,
+                        'height': None,
+                        'size': media_info.get('size'),
+                        'duration': media_info.get('duration'),
+                        'caption': media_info.get('caption'),
+                        'mime_type': media_info.get('mime_type')
+                    }
+                
+                # Извлекаем заголовок и подзаголовок
+                title = post_data.get("title", "Без заголовка")
+                subtitle = post_data.get("subtitle")
+                
+                # Формируем полный текст
+                full_text = post_data.get("text", "")
+                if subtitle:
+                    full_text = f"{title}\n{subtitle}\n\n{full_text}"
+                
+                post = {
+                    'id': str(post_data["id"]),
+                    'title': title,
+                    'text': full_text,
+                    'link': post_data["link"],
+                    'date': post_data.get("date", datetime.now().isoformat()),
+                    'source': channel_data['name'],
+                    'category': channel_data['category'],
+                    'channel': channel_username,
+                    'media': media,
+                    'views': post_data.get("views", 0),
+                    'forwards': post_data.get("forwards", 0),
+                    'replies': post_data.get("replies", 0),
+                    'has_media': post_data.get("has_media", False)
+                }
+                
+                posts.append(post)
+            
+            return posts
+            
+        except Exception as e:
+            logger.error(f"Error fetching via Telegram API for {channel_username}: {e}")
+            return []
+
+    async def _fetch_via_html_parsing(self, channel_username: str, channel_data: Dict) -> List[Dict[str, Any]]:
+        """Получение постов через HTML парсинг (fallback)"""
+        try:
+            url = f"https://t.me/s/{channel_username}"
             async with aiohttp.ClientSession() as session:
                 try:
                     async with session.get(url, timeout=10) as response:
@@ -142,9 +221,8 @@ class TelegramNewsService:
                 except Exception as e:
                     logger.warning(f"Error fetching {url}: {e}, using mock data")
                     return self._generate_mock_posts(channel_data)
-
         except Exception as e:
-            logger.error(f"Error in fetch_telegram_channel for {channel_username}: {e}")
+            logger.error(f"Error in HTML parsing for {channel_username}: {e}")
             return []
 
     def _parse_telegram_html(self, html_content: str, channel_data: Dict) -> List[Dict[str, Any]]:
@@ -160,10 +238,16 @@ class TelegramNewsService:
         text_pattern = r'<div class="tgme_widget_message_text.*?".*?>(.*?)</div>'
         date_pattern = r'<time.*?datetime="([^"]+)"'
 
-        # Паттерны для медиа контента
+        # Расширенные паттерны для медиа контента
         photo_pattern = r'<a.*?class="tgme_widget_message_photo_wrap.*?style="background-image:url\(&quot;([^&]+)&quot;\)"'
         video_pattern = r'<video.*?src="([^"]+)".*?poster="([^"]*)".*?>'
         video_thumb_pattern = r'<video.*?poster="([^"]+)".*?>'
+        
+        # Дополнительные паттерны для медиа
+        img_pattern = r'<img.*?src="([^"]+)".*?>'
+        source_pattern = r'<source.*?src="([^"]+)".*?>'
+        file_pattern = r'<a.*?class="tgme_widget_message_document_wrap.*?href="([^"]+)".*?>'
+        audio_pattern = r'<audio.*?src="([^"]+)".*?>'
 
         post_matches = re.findall(post_pattern, html_content, re.DOTALL)
 
@@ -181,23 +265,25 @@ class TelegramNewsService:
             if date_match:
                 try:
                     date = datetime.fromisoformat(date_match.group(1).replace('Z', '+00:00')).isoformat()
-                except:
+                except (ValueError, TypeError):
                     pass
 
             # Извлекаем медиа контент
             media = None
+            media_urls = []
 
-            # Проверяем на фото
+            # Проверяем на фото (основной паттерн)
             photo_match = re.search(photo_pattern, post_html)
             if photo_match:
                 photo_url = photo_match.group(1).replace('&amp;', '&')
                 media = {
                     'type': 'photo',
                     'url': photo_url,
-                    'thumbnail': photo_url,  # Для фото thumbnail = основное изображение
+                    'thumbnail': photo_url,
                     'width': None,
                     'height': None
                 }
+                media_urls.append(photo_url)
 
             # Проверяем на видео
             video_match = re.search(video_pattern, post_html)
@@ -211,16 +297,71 @@ class TelegramNewsService:
                     'width': None,
                     'height': None
                 }
+                media_urls.append(video_url)
             elif not media:  # Если не нашли полное видео, ищем только thumbnail
                 video_thumb_match = re.search(video_thumb_pattern, post_html)
                 if video_thumb_match:
                     media = {
                         'type': 'video',
-                        'url': None,  # URL видео не найден
+                        'url': None,
                         'thumbnail': video_thumb_match.group(1),
                         'width': None,
                         'height': None
                     }
+
+            # Проверяем на обычные изображения
+            if not media:
+                img_matches = re.findall(img_pattern, post_html)
+                if img_matches:
+                    img_url = img_matches[0].replace('&amp;', '&')
+                    media = {
+                        'type': 'photo',
+                        'url': img_url,
+                        'thumbnail': img_url,
+                        'width': None,
+                        'height': None
+                    }
+                    media_urls.append(img_url)
+
+            # Проверяем на source элементы (часто используются для видео)
+            if not media:
+                source_matches = re.findall(source_pattern, post_html)
+                if source_matches:
+                    source_url = source_matches[0].replace('&amp;', '&')
+                    media = {
+                        'type': 'video',
+                        'url': source_url,
+                        'thumbnail': None,
+                        'width': None,
+                        'height': None
+                    }
+                    media_urls.append(source_url)
+
+            # Проверяем на файлы
+            file_matches = re.findall(file_pattern, post_html)
+            if file_matches and not media:
+                file_url = file_matches[0].replace('&amp;', '&')
+                media = {
+                    'type': 'document',
+                    'url': file_url,
+                    'thumbnail': None,
+                    'width': None,
+                    'height': None
+                }
+                media_urls.append(file_url)
+
+            # Проверяем на аудио
+            audio_matches = re.findall(audio_pattern, post_html)
+            if audio_matches and not media:
+                audio_url = audio_matches[0].replace('&amp;', '&')
+                media = {
+                    'type': 'audio',
+                    'url': audio_url,
+                    'thumbnail': None,
+                    'width': None,
+                    'height': None
+                }
+                media_urls.append(audio_url)
 
             if text:  # Только если удалось извлечь текст
                 # Генерируем заголовок из первых слов
@@ -235,7 +376,12 @@ class TelegramNewsService:
                     'source': channel_data['name'],
                     'category': channel_data['category'],
                     'channel': channel_data['username'],
-                    'media': media  # Добавляем медиа данные
+                    'media': media,  # Основное медиа
+                    'media_urls': media_urls,  # Все найденные медиафайлы
+                    'has_media': bool(media),
+                    'views': 0,  # HTML парсинг не дает статистику
+                    'forwards': 0,
+                    'replies': 0
                 }
 
                 posts.append(post)
@@ -673,7 +819,7 @@ class TelegramNewsService:
                             try:
                                 import time
                                 date = datetime.fromtimestamp(time.mktime(entry.published_parsed)).isoformat()
-                            except:
+                            except (ValueError, TypeError, OSError):
                                 pass
 
                         # Извлекаем медиа контент
@@ -738,7 +884,7 @@ class TelegramNewsService:
         try:
             # Импортируем здесь, чтобы избежать циркулярного импорта
             import server.main as main_module
-            from server.db import NewsItem
+            from server.db import NewsItem, NewsSource
 
             if main_module.SessionLocal is None:
                 logger.error("Database not initialized")
@@ -757,23 +903,54 @@ class TelegramNewsService:
                     if existing:
                         continue  # Пропускаем дубликаты
 
+                    # Получаем или создаем источник
+                    source_name = post.get('source', 'Unknown')
+                    source_url = post.get('link', '')
+                    source_type = 'telegram' if 't.me' in source_url else 'rss'
+                    
+                    # Ищем существующий источник
+                    source = db.query(NewsSource).filter(
+                        NewsSource.name == source_name,
+                        NewsSource.url == source_url
+                    ).first()
+                    
+                    if not source:
+                        # Создаем новый источник
+                        source = NewsSource(
+                            name=source_name,
+                            url=source_url,
+                            source_type=source_type,
+                            category=post.get('category', 'general'),
+                            is_active=True
+                        )
+                        db.add(source)
+                        db.flush()  # Получаем ID
+
                     # Извлекаем медиа данные
                     image_url = None
                     video_url = None
+                    media_json = None
+                    media_urls_json = None
 
                     if post.get('media'):
+                        media_json = json.dumps(post['media'])
                         if post['media']['type'] == 'photo':
-                            image_url = post['media']['url']
+                            image_url = post['media'].get('url')
                         elif post['media']['type'] == 'video':
-                            video_url = post['media']['url']
+                            video_url = post['media'].get('url')
                             if not image_url and post['media'].get('thumbnail'):
                                 image_url = post['media']['thumbnail']
+
+                    # Сохраняем все медиа URL
+                    if post.get('media_urls'):
+                        media_urls_json = json.dumps(post['media_urls'])
 
                     # Оценка времени чтения (200 слов в минуту)
                     word_count = len(post['text'].split()) if post.get('text') else 0
                     reading_time = max(1, word_count // 200)
 
                     news_item = NewsItem(
+                        source_id=source.id,  # Добавляем обязательное поле source_id
                         title=post['title'],
                         content=post['text'],
                         link=post['link'],
@@ -782,9 +959,17 @@ class TelegramNewsService:
                         image_url=image_url,
                         video_url=video_url,
                         reading_time=reading_time,
-                        views_count=0,
+                        views_count=post.get('views', 0),
                         author=post.get('source'),
-                        subtitle=None
+                        subtitle=post.get('subtitle'),
+                        # Новые поля медиа
+                        media=media_json,
+                        content_html=post.get('text'),  # Сохраняем HTML контент
+                        # Дополнительные поля
+                        has_media=post.get('has_media', False),
+                        forwards=post.get('forwards', 0),
+                        replies=post.get('replies', 0),
+                        channel=post.get('channel')
                     )
 
                     news_items.append(news_item)

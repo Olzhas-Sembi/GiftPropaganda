@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def init_db():
     """Инициализация базы данных с повторными попытками"""
     # Проверяем переменные окружения
-    database_url = os.getenv('DATABASE_URL', 'postgresql://user:password@db:5432/giftpropaganda')
+    database_url = os.getenv('DATABASE_URL', 'postgresql://news_db_bnnu_user:QkbkVviv0rOOKW2LIXh2tkelyDICRLXv@dpg-d22i993e5dus739mr8n0-a.oregon-postgres.render.com/news_db_bnnu')
     token = os.getenv('TOKEN')
     webhook_url = os.getenv('WEBHOOK_URL')
 
@@ -63,7 +63,7 @@ def apply_migrations():
                 WHERE table_name = 'news_items' 
                 AND column_name IN (
                     'image_url', 'video_url', 'reading_time', 'views_count', 
-                    'author', 'subtitle', 'created_at', 'updated_at'
+                    'author', 'subtitle', 'created_at', 'updated_at', 'content_html', 'media'
                 )
             """))
 
@@ -79,7 +79,9 @@ def apply_migrations():
                 ('author', 'VARCHAR(200)'),
                 ('subtitle', 'VARCHAR(500)'),
                 ('created_at', 'TIMESTAMP DEFAULT NOW()'),
-                ('updated_at', 'TIMESTAMP DEFAULT NOW()')
+                ('updated_at', 'TIMESTAMP DEFAULT NOW()'),
+                ('content_html', 'TEXT'),
+                ('media', 'JSON')
             ]
 
             for field_name, field_type in fields_to_add:
@@ -163,8 +165,10 @@ app.add_middleware(
 
 # Импортируем роутеры после создания app
 from server.api.news import router as news_router
+from server.api.telegram import router as telegram_router
 
 app.include_router(news_router, prefix="/api")
+app.include_router(telegram_router, prefix="/api")
 
 @app.get("/")
 async def root():
@@ -181,4 +185,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

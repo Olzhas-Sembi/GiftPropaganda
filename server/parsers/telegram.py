@@ -58,7 +58,7 @@ async def fetch_telegram_channels(session: Session):
                         publish_date = datetime.fromisoformat(item['date'].replace('Z', '+00:00'))
                     else:
                         publish_date = item['date']
-                except:
+                except (ValueError, TypeError):
                     publish_date = datetime.now()
 
                 # Извлекаем медиа данные

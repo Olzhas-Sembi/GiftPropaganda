@@ -1,14 +1,17 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
 import os
 
 # Получаем URL базы данных из переменных окружения
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/giftpropaganda")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://news_db_bnnu_user:QkbkVviv0rOOKW2LIXh2tkelyDICRLXv@dpg-d22i993e5dus739mr8n0-a.oregon-postgres.render.com/news_db_bnnu")
 
-# Создаем движок базы данных
-engine = create_engine(DATABASE_URL)
+# Создаем движок базы данных с SSL
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"sslmode": "require"}
+)
 
 # Создаем фабрику сессий
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -33,12 +36,14 @@ class NewsItem(Base):
     __tablename__ = "news_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(String(255), nullable=False)  # ID поста в источнике
+    source_id = Column(Integer, nullable=False)  # ID источника
     title = Column(String(1000), nullable=False)
     content = Column(Text, nullable=False)
+    content_html = Column(Text, nullable=True)  # HTML контент с медиа
     link = Column(String(1000), nullable=False)
     publish_date = Column(DateTime, nullable=False)
     category = Column(String(100), nullable=False)
+    media = Column(JSON, nullable=True)  # JSON поле для медиа
 
     # Новые поля для медиа
     image_url = Column(String(1000), nullable=True)
@@ -47,6 +52,12 @@ class NewsItem(Base):
     views_count = Column(Integer, default=0)
     author = Column(String(200), nullable=True)
     subtitle = Column(String(500), nullable=True)
+    
+    # Дополнительные поля для расширенной поддержки медиа
+    has_media = Column(Boolean, default=False)
+    forwards = Column(Integer, default=0)
+    replies = Column(Integer, default=0)
+    channel = Column(String(200), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
